@@ -1,0 +1,10 @@
+node_modules
+.vscode
+dist
+docs
+*.log
+tmp
+build
+test/fixtures
+!test/fixtures/files
+!test/fixtures/README.md
