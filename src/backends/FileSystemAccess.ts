@@ -7,6 +7,15 @@ import { Stats, FileType } from '@browserfs/core/stats.js';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
 import { Buffer } from 'buffer';
 
+declare global {
+	interface FileSystemDirectoryHandle {
+		[Symbol.iterator](): IterableIterator<[string, FileSystemHandle]>;
+		entries(): IterableIterator<[string, FileSystemHandle]>;
+		keys(): IterableIterator<string>;
+		values(): IterableIterator<FileSystemHandle>;
+	}
+}
+
 interface FileSystemAccessFileSystemOptions {
 	handle: FileSystemDirectoryHandle;
 }
@@ -47,11 +56,11 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		return typeof FileSystemHandle === 'function';
 	}
 
-	private _handles: { [path: string]: FileSystemHandle };
+	private _handles: Map<string, FileSystemHandle> = new Map();
 
 	public constructor({ handle }: FileSystemAccessFileSystemOptions) {
 		super();
-		this._handles = { '/': handle };
+		this._handles.set('/', handle);
 	}
 
 	public get metadata(): FileSystemMetadata {
@@ -181,13 +190,14 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 
 	public async readdir(path: string, cred: Cred): Promise<string[]> {
 		const handle = await this.getHandle(path);
-		if (handle instanceof FileSystemDirectoryHandle) {
-			const _keys: string[] = [];
-			for await (const key of handle.keys()) {
-				_keys.push(join(path, key));
-			}
-			return _keys;
+		if (!(handle instanceof FileSystemDirectoryHandle)) {
+			throw ApiError.ENOTDIR(path);
 		}
+		const _keys: string[] = [];
+		for await (const key of handle.keys()) {
+			_keys.push(join(path, key));
+		}
+		return _keys;
 	}
 
 	private newFile(path: string, flag: FileFlag, data: ArrayBuffer, size?: number, lastModified?: number): File {
@@ -195,8 +205,8 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 	}
 
 	private async getHandle(path: string): Promise<FileSystemHandle> {
-		if (path === '/') {
-			return this._handles['/'];
+		if (this._handles.has(path)) {
+			return this._handles.get(path);
 		}
 
 		let walkedPath = '/';
@@ -205,15 +215,15 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 			const walkingPath = join(walkedPath, pathPart);
 			const continueWalk = (handle: FileSystemHandle) => {
 				walkedPath = walkingPath;
-				this._handles[walkedPath] = handle;
+				this._handles.set(walkedPath, handle);
 
 				if (remainingPathParts.length === 0) {
-					return this._handles[path];
+					return this._handles.get(path);
 				}
 
 				getHandleParts(remainingPathParts);
 			};
-			const handle = this._handles[walkedPath] as FileSystemDirectoryHandle;
+			const handle = this._handles.get(walkedPath) as FileSystemDirectoryHandle;
 
 			try {
 				return await continueWalk(await handle.getDirectoryHandle(pathPart));
@@ -232,6 +242,6 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 			}
 		};
 
-		getHandleParts(pathParts);
+		await getHandleParts(pathParts);
 	}
 }

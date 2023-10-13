@@ -27,9 +27,9 @@
 		"./*": "./dist/*"
 	},
 	"scripts": {
-		"format": "prettier --write src test",
-		"format:check": "prettier --check src test",
-		"lint": "eslint src test",
+		"format": "prettier --write src",
+		"format:check": "prettier --check src",
+		"lint": "eslint src",
 		"test": "cross-env NODE_OPTIONS=--experimental-vm-modules npx jest",
 		"build": "node scripts/build.mjs",
 		"build:docs": "typedoc --out docs --name BrowserFS src/index.ts",
