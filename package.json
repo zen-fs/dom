@@ -26,6 +26,13 @@
 	"exports": {
 		"./*": "./dist/*"
 	},
+	"typesVersions": {
+		"*": {
+			"*": [
+				"./dist/*"
+			]
+		}
+	},
 	"scripts": {
 		"format": "prettier --write src",
 		"format:check": "prettier --check src",
