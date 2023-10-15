@@ -55,6 +55,6 @@
 		"typescript": "5.2.2"
 	},
 	"dependencies": {
-		"@browserfs/core": "^0.0.5"
+		"@browserfs/core": "^0.0.6"
 	}
 }
