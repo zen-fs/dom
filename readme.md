@@ -21,7 +21,7 @@ npm install @browserfs/fs-dom
 
 ## Usage
 
-> 🛈 The examples are written in ESM. If you are using CJS, you can `require` the package. If running in a borwser you can add a script tag to your HTML pointing to the `browser.min.js` and use BrowserFS DOM via the global `BrowserFS_DOM` object.
+> 🛈 The examples are written in ESM. If you are using CJS, you can `require` the package. If running in a browser you can add a script tag to your HTML pointing to the `browser.min.js` and use BrowserFS DOM via the global `BrowserFS_DOM` object.
 
 You can use DOM backends, though you must register them if you plan on using `configure`:
 
