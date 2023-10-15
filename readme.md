@@ -27,7 +27,7 @@ You can use DOM backends, though you must register them if you plan on using `co
 
 ```js
 import { configure, fs, registerBackend } from '@browserfs/core';
-import { Storage } '@browserfs/fs-dom';
+import { Storage } from '@browserfs/fs-dom';
 
 registerBackend(Storage);
 await configure({ fs: 'Storage', options: { storage: localStorage } });
