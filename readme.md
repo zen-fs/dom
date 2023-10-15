@@ -33,11 +33,11 @@ npm install @browserfs/fs-dom
 You can use DOM backends, though you must register them if you plan on using `configure`:
 
 ```js
-import { configure, fs } from '@browserfs/core';
+import { configure, fs, registerBackend } from '@browserfs/core';
 import { Storage } '@browserfs/fs-dom';
 
-// you can also add a callback as the last parameter instead of using promises
-await configure({ fs: 'Storage' });
+registerBackend(Storage);
+await configure({ fs: 'Storage', options: { storage: localStorage } });
 
 if (!fs.existsSync('/test.txt')) {
 	fs.writeFileSync('/test.txt', 'This will persist across reloads!');
