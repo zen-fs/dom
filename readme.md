@@ -19,13 +19,6 @@ For more information, see the [API documentation](https://browser-fs.github.io/f
 npm install @browserfs/fs-dom
 ```
 
-## Building
-
--   Make sure you have Node and NPM installed. You must have Node v18 or newer.
--   Install dependencies with `npm install`
--   Build using `npm run build`
--   You can find the built code in `dist`.
-
 ## Usage
 
 > 🛈 The examples are written in ESM. If you are using CJS, you can `require` the package. If running in a borwser you can add a script tag to your HTML pointing to the `browser.min.js` and use BrowserFS DOM via the global `BrowserFS_DOM` object.
@@ -46,7 +39,3 @@ if (!fs.existsSync('/test.txt')) {
 const contents = fs.readFileSync('/test.txt', 'utf-8');
 console.log(contents);
 ```
-
-### Testing
-
-Run unit tests with `npm test`.
