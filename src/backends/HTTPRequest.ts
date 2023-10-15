@@ -4,7 +4,7 @@ import { copyingSlice } from '@browserfs/core/utils.js';
 import { File, FileFlag, ActionType, NoSyncFile } from '@browserfs/core/file.js';
 import { Stats } from '@browserfs/core/stats.js';
 import { fetchIsAvailable, fetchFile, fetchFileSize } from '../fetch.js';
-import { FileIndex, isFileInode, isDirInode } from '../file_index.js';
+import { FileIndex, isIndexFileInode, isIndexDirInode } from '@browserfs/core/FileIndex.js';
 import { Cred } from '@browserfs/core/cred.js';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
 import { R_OK } from '@browserfs/core/emulation/constants.js';
@@ -129,7 +129,7 @@ export class HTTPRequest extends BaseFileSystem {
 	 */
 	public preloadFile(path: string, buffer: Buffer): void {
 		const inode = this._index.getInode(path);
-		if (isFileInode<Stats>(inode)) {
+		if (isIndexFileInode<Stats>(inode)) {
 			if (inode === null) {
 				throw ApiError.ENOENT(path);
 			}
@@ -150,13 +150,13 @@ export class HTTPRequest extends BaseFileSystem {
 			throw ApiError.EACCES(path);
 		}
 		let stats: Stats;
-		if (isFileInode<Stats>(inode)) {
+		if (isIndexFileInode<Stats>(inode)) {
 			stats = inode.getData();
 			// At this point, a non-opened file will still have default stats from the listing.
 			if (stats.size < 0) {
 				stats.size = await this._requestFileSize(path);
 			}
-		} else if (isDirInode(inode)) {
+		} else if (isIndexDirInode(inode)) {
 			stats = inode.getStats();
 		} else {
 			throw ApiError.FileError(ErrorCode.EINVAL, path);
@@ -177,13 +177,13 @@ export class HTTPRequest extends BaseFileSystem {
 		if (!inode.toStats().hasAccess(flags.getMode(), cred)) {
 			throw ApiError.EACCES(path);
 		}
-		if (isFileInode<Stats>(inode) || isDirInode<Stats>(inode)) {
+		if (isIndexFileInode<Stats>(inode) || isIndexDirInode<Stats>(inode)) {
 			switch (flags.pathExistsAction()) {
 				case ActionType.THROW_EXCEPTION:
 				case ActionType.TRUNCATE_FILE:
 					throw ApiError.EEXIST(path);
 				case ActionType.NOP:
-					if (isDirInode<Stats>(inode)) {
+					if (isIndexDirInode<Stats>(inode)) {
 						const stats = inode.getStats();
 						return new NoSyncFile(this, path, flags, stats, stats.fileData || undefined);
 					}
