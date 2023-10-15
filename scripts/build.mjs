@@ -21,7 +21,6 @@ const ctx = await context({
 	bundle: true,
 	minify: true,
 	platform: 'browser',
-	alias: { process: 'bfs-process' },
 	plugins: [polyfillNode(), { name: 'watcher', setup(build) {
 		build.onStart(() => {
 			if(!options.keep) {
