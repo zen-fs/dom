@@ -1,4 +1,4 @@
-import { basename, dirname, join } from 'path';
+import { basename, dirname, join } from '@browserfs/core/emulation/path.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
 import { Cred } from '@browserfs/core/cred.js';
 import { File, FileFlag, PreloadFile } from '@browserfs/core/file.js';

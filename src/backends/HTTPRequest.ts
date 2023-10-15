@@ -1,6 +1,5 @@
 import { BaseFileSystem, FileContents, FileSystemMetadata } from '@browserfs/core/filesystem.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
-import { copyingSlice } from '@browserfs/core/utils.js';
 import { File, FileFlag, ActionType, NoSyncFile } from '@browserfs/core/file.js';
 import { Stats } from '@browserfs/core/stats.js';
 import { fetchIsAvailable, fetchFile, fetchFileSize } from '../fetch.js';
@@ -8,6 +7,7 @@ import { FileIndex, isIndexFileInode, isIndexDirInode } from '@browserfs/core/Fi
 import { Cred } from '@browserfs/core/cred.js';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
 import { R_OK } from '@browserfs/core/emulation/constants.js';
+import { Buffer } from 'buffer';
 
 export interface HTTPRequestIndex {
 	[key: string]: string;
@@ -221,7 +221,7 @@ export class HTTPRequest extends BaseFileSystem {
 			const fdCast = <NoSyncFile<HTTPRequest>>fd;
 			const fdBuff = <Buffer>fdCast.getBuffer();
 			if (encoding === null) {
-				return copyingSlice(fdBuff);
+				return Buffer.from(fdBuff);
 			}
 			return fdBuff.toString(encoding);
 		} finally {

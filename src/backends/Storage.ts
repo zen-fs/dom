@@ -11,7 +11,7 @@ export class StorageStore implements SyncKeyValueStore, SimpleSyncStore {
 		return StorageFileSystem.Name;
 	}
 
-	constructor(protected _storage) {}
+	constructor(protected _storage: Storage) {}
 
 	public clear(): void {
 		this._storage.clear();

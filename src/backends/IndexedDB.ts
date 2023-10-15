@@ -4,18 +4,6 @@ import { Buffer } from 'buffer';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
 
 /**
- * Get the indexedDB constructor for the current browser.
- * @hidden
- */
-const indexedDB: IDBFactory = (() => {
-	try {
-		return globalThis.indexedDB || (<any>globalThis).mozIndexedDB || (<any>globalThis).webkitIndexedDB || globalThis.msIndexedDB;
-	} catch {
-		return null;
-	}
-})();
-
-/**
  * Converts a DOMException or a DOMError from an IndexedDB event into a
  * standardized BrowserFS API error.
  * @hidden
@@ -247,7 +235,7 @@ export class IndexedDBFileSystem extends AsyncKeyValueFileSystem {
 			if (!(idbFactory instanceof IDBFactory)) {
 				return false;
 			}
-			const req = indexedDB.open('__browserfs_test__');
+			const req = idbFactory.open('__browserfs_test__');
 			if (!req) {
 				return false;
 			}
