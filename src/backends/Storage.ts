@@ -1,7 +1,7 @@
 import { SyncKeyValueStore, SimpleSyncStore, SyncKeyValueFileSystem, SimpleSyncRWTransaction, SyncKeyValueRWTransaction } from '@browserfs/core/backends/SyncStore.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
-import { Buffer } from 'buffer';
+import { encode } from '@browserfs/core/utils.js';
 
 /**
  * A synchronous key-value store backed by Storage.
@@ -22,16 +22,16 @@ export class StorageStore implements SyncKeyValueStore, SimpleSyncStore {
 		return new SimpleSyncRWTransaction(this);
 	}
 
-	public get(key: string): Buffer | undefined {
+	public get(key: string): Uint8Array | undefined {
 		const data = this._storage.getItem(key);
 		if (typeof data != 'string') {
 			return;
 		}
 
-		return Buffer.from(data);
+		return encode(data);
 	}
 
-	public put(key: string, data: Buffer, overwrite: boolean): boolean {
+	public put(key: string, data: Uint8Array, overwrite: boolean): boolean {
 		try {
 			if (!overwrite && this._storage.getItem(key) !== null) {
 				// Don't want to overwrite the key!

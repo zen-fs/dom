@@ -1,7 +1,6 @@
 /**
  * Contains utility methods for network I/O (using fetch)
  */
-import { Buffer } from 'buffer';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
 
 export const fetchIsAvailable = typeof fetch !== 'undefined' && fetch !== null;
@@ -20,21 +19,20 @@ function convertError(e): never {
  * constants.
  * @hidden
  */
-export async function fetchFile(p: string, type: 'buffer'): Promise<Buffer>;
+export async function fetchFile(p: string, type: 'buffer'): Promise<Uint8Array>;
 export async function fetchFile(p: string, type: 'json'): Promise<any>;
-export async function fetchFile(p: string, type: string): Promise<any>;
-export async function fetchFile(p: string, type: string): Promise<any> {
+export async function fetchFile(p: string, type: 'buffer' | 'json'): Promise<any>;
+export async function fetchFile(p: string, type: 'buffer' | 'json'): Promise<any> {
 	const response = await fetch(p).catch(convertError);
 	if (!response.ok) {
 		throw new ApiError(ErrorCode.EIO, `fetch error: response returned code ${response.status}`);
 	}
 	switch (type) {
 		case 'buffer':
-			const buf = await response.arrayBuffer().catch(convertError);
-			return Buffer.from(buf);
+			const arrayBuffer = await response.arrayBuffer().catch(convertError);
+			return new Uint8Array(arrayBuffer);
 		case 'json':
-			const json = await response.json().catch(convertError);
-			return json;
+			return response.json().catch(convertError);
 		default:
 			throw new ApiError(ErrorCode.EINVAL, 'Invalid download type: ' + type);
 	}

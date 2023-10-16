@@ -1,13 +1,13 @@
 import { BaseFileSystem, FileContents, FileSystemMetadata } from '@browserfs/core/filesystem.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
-import { File, FileFlag, ActionType, NoSyncFile } from '@browserfs/core/file.js';
+import { FileFlag, ActionType, NoSyncFile } from '@browserfs/core/file.js';
 import { Stats } from '@browserfs/core/stats.js';
 import { fetchIsAvailable, fetchFile, fetchFileSize } from '../fetch.js';
 import { FileIndex, isIndexFileInode, isIndexDirInode } from '@browserfs/core/FileIndex.js';
 import { Cred } from '@browserfs/core/cred.js';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
 import { R_OK } from '@browserfs/core/emulation/constants.js';
-import { Buffer } from 'buffer';
+import { decode } from '@browserfs/core/utils.js';
 
 export interface HTTPRequestIndex {
 	[key: string]: string;
@@ -83,8 +83,6 @@ export class HTTPRequest extends BaseFileSystem {
 
 	public readonly prefixUrl: string;
 	private _index: FileIndex<{}>;
-	private _requestFileInternal: typeof fetchFile;
-	private _requestFileSizeInternal: typeof fetchFileSize;
 
 	constructor({ index, baseUrl = '' }: HTTPRequest.Options) {
 		super();
@@ -103,9 +101,6 @@ export class HTTPRequest extends BaseFileSystem {
 			baseUrl = baseUrl + '/';
 		}
 		this.prefixUrl = baseUrl;
-
-		this._requestFileInternal = fetchFile;
-		this._requestFileSizeInternal = fetchFileSize;
 	}
 
 	public get metadata(): FileSystemMetadata {
@@ -125,9 +120,9 @@ export class HTTPRequest extends BaseFileSystem {
 	/**
 	 * Special HTTPFS function: Preload the given file into the index.
 	 * @param [String] path
-	 * @param [BrowserFS.Buffer] buffer
+	 * @param [BrowserFS.Uint8Array] buffer
 	 */
-	public preloadFile(path: string, buffer: Buffer): void {
+	public preloadFile(path: string, buffer: Uint8Array): void {
 		const inode = this._index.getInode(path);
 		if (isIndexFileInode<Stats>(inode)) {
 			if (inode === null) {
@@ -164,7 +159,7 @@ export class HTTPRequest extends BaseFileSystem {
 		return stats;
 	}
 
-	public async open(path: string, flags: FileFlag, mode: number, cred: Cred): Promise<File> {
+	public async open(path: string, flags: FileFlag, mode: number, cred: Cred): Promise<NoSyncFile<this>> {
 		// INVARIANT: You can't write to files on this file system.
 		if (flags.isWriteable()) {
 			throw new ApiError(ErrorCode.EPERM, path);
@@ -219,11 +214,8 @@ export class HTTPRequest extends BaseFileSystem {
 		const fd = await this.open(fname, flag, 0o644, cred);
 		try {
 			const fdCast = <NoSyncFile<HTTPRequest>>fd;
-			const fdBuff = <Buffer>fdCast.getBuffer();
-			if (encoding === null) {
-				return Buffer.from(fdBuff);
-			}
-			return fdBuff.toString(encoding);
+			const fdBuff = fdCast.getBuffer();
+			return encoding ? decode(fdBuff) : fdBuff;
 		} finally {
 			await fd.close();
 		}
@@ -239,17 +231,17 @@ export class HTTPRequest extends BaseFileSystem {
 	/**
 	 * Asynchronously download the given file.
 	 */
-	private _requestFile(p: string, type: 'buffer'): Promise<Buffer>;
+	private _requestFile(p: string, type: 'buffer'): Promise<Uint8Array>;
 	private _requestFile(p: string, type: 'json'): Promise<any>;
-	private _requestFile(p: string, type: string): Promise<string>;
-	private _requestFile(p: string, type: string): Promise<any> {
-		return this._requestFileInternal(this._getHTTPPath(p), type);
+	private _requestFile(p: string, type: 'buffer' | 'json'): Promise<any>;
+	private _requestFile(p: string, type: 'buffer' | 'json'): Promise<any> {
+		return fetchFile(this._getHTTPPath(p), type);
 	}
 
 	/**
 	 * Only requests the HEAD content, for the file size.
 	 */
 	private _requestFileSize(path: string): Promise<number> {
-		return this._requestFileSizeInternal(this._getHTTPPath(path));
+		return fetchFileSize(this._getHTTPPath(path));
 	}
 }

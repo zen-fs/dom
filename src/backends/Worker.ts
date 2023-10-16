@@ -94,10 +94,10 @@ export class WorkerFS extends BaseFileSystem {
 		worker: {
 			type: 'object',
 			description: 'The target worker that you want to connect to, or the current worker if in a worker context.',
-			validator: async (v: Worker): Promise<void> => {
+			validator(worker: Worker) {
 				// Check for a `postMessage` function.
-				if (typeof v?.postMessage != 'function') {
-					throw new ApiError(ErrorCode.EINVAL, `option must be a Web Worker instance.`);
+				if (typeof worker?.postMessage != 'function') {
+					throw new ApiError(ErrorCode.EINVAL, 'option must be a Web Worker instance.');
 				}
 			},
 		},

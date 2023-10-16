@@ -1,11 +1,10 @@
 import { basename, dirname, join } from '@browserfs/core/emulation/path.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
 import { Cred } from '@browserfs/core/cred.js';
-import { File, FileFlag, PreloadFile } from '@browserfs/core/file.js';
+import { FileFlag, PreloadFile } from '@browserfs/core/file.js';
 import { BaseFileSystem, FileSystemMetadata } from '@browserfs/core/filesystem.js';
 import { Stats, FileType } from '@browserfs/core/stats.js';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
-import { Buffer } from 'buffer';
 
 declare global {
 	interface FileSystemDirectoryHandle {
@@ -28,8 +27,8 @@ const handleError = (path = '', error: Error) => {
 	throw error as ApiError;
 };
 
-export class FileSystemAccessFile extends PreloadFile<FileSystemAccessFileSystem> implements File {
-	constructor(_fs: FileSystemAccessFileSystem, _path: string, _flag: FileFlag, _stat: Stats, contents?: Buffer) {
+export class FileSystemAccessFile extends PreloadFile<FileSystemAccessFileSystem> {
+	constructor(_fs: FileSystemAccessFileSystem, _path: string, _flag: FileFlag, _stat: Stats, contents?: Uint8Array) {
 		super(_fs, _path, _flag, _stat, contents);
 	}
 
@@ -70,7 +69,7 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		};
 	}
 
-	public async _sync(p: string, data: Buffer, stats: Stats, cred: Cred): Promise<void> {
+	public async _sync(p: string, data: Uint8Array, stats: Stats, cred: Cred): Promise<void> {
 		const currentStats = await this.stat(p, cred);
 		if (stats.mtime !== currentStats!.mtime) {
 			await this.writeFile(p, data, null, FileFlag.getFileFlag('w'), currentStats!.mode, cred);
@@ -122,8 +121,8 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		}
 	}
 
-	public async createFile(p: string, flag: FileFlag, mode: number, cred: Cred): Promise<File> {
-		await this.writeFile(p, Buffer.alloc(0), null, flag, mode, cred, true);
+	public async createFile(p: string, flag: FileFlag, mode: number, cred: Cred): Promise<FileSystemAccessFile> {
+		await this.writeFile(p, new Uint8Array(), null, flag, mode, cred, true);
 		return this.openFile(p, flag, cred);
 	}
 
@@ -150,7 +149,7 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		}
 	}
 
-	public async openFile(path: string, flags: FileFlag, cred: Cred): Promise<File> {
+	public async openFile(path: string, flags: FileFlag, cred: Cred): Promise<FileSystemAccessFile> {
 		const handle = await this.getHandle(path);
 		if (handle instanceof FileSystemFileHandle) {
 			const file = await handle.getFile();
@@ -200,8 +199,8 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		return _keys;
 	}
 
-	private newFile(path: string, flag: FileFlag, data: ArrayBuffer, size?: number, lastModified?: number): File {
-		return new FileSystemAccessFile(this, path, flag, new Stats(FileType.FILE, size || 0, undefined, undefined, lastModified || new Date().getTime()), Buffer.from(data));
+	private newFile(path: string, flag: FileFlag, data: ArrayBuffer, size?: number, lastModified?: number): FileSystemAccessFile {
+		return new FileSystemAccessFile(this, path, flag, new Stats(FileType.FILE, size || 0, undefined, undefined, lastModified || new Date().getTime()), new Uint8Array(data));
 	}
 
 	private async getHandle(path: string): Promise<FileSystemHandle> {

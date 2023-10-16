@@ -1,6 +1,5 @@
 import { AsyncKeyValueROTransaction, AsyncKeyValueRWTransaction, AsyncKeyValueStore, AsyncKeyValueFileSystem } from '@browserfs/core/backends/AsyncStore.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
-import { Buffer } from 'buffer';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
 
 /**
@@ -40,7 +39,7 @@ function onErrorHandler(cb: (e: ApiError) => void, code: ErrorCode = ErrorCode.E
 export class IndexedDBROTransaction implements AsyncKeyValueROTransaction {
 	constructor(public tx: IDBTransaction, public store: IDBObjectStore) {}
 
-	public get(key: string): Promise<Buffer> {
+	public get(key: string): Promise<Uint8Array> {
 		return new Promise((resolve, reject) => {
 			try {
 				const r: IDBRequest = this.store.get(key);
@@ -52,8 +51,8 @@ export class IndexedDBROTransaction implements AsyncKeyValueROTransaction {
 					if (result === undefined) {
 						resolve(result);
 					} else {
-						// IDB data is stored as an ArrayBuffer
-						resolve(Buffer.from(result));
+						// IDB data is stored as an ArrayUint8Array
+						resolve(Uint8Array.from(result));
 					}
 				};
 			} catch (e) {
@@ -74,7 +73,7 @@ export class IndexedDBRWTransaction extends IndexedDBROTransaction implements As
 	/**
 	 * @todo return false when add has a key conflict (no error)
 	 */
-	public put(key: string, data: Buffer, overwrite: boolean): Promise<boolean> {
+	public put(key: string, data: Uint8Array, overwrite: boolean): Promise<boolean> {
 		return new Promise((resolve, reject) => {
 			try {
 				const r: IDBRequest = overwrite ? this.store.put(data, key) : this.store.add(data, key);
