@@ -119,8 +119,8 @@ export class HTTPRequest extends BaseFileSystem {
 
 	/**
 	 * Special HTTPFS function: Preload the given file into the index.
-	 * @param [String] path
-	 * @param [BrowserFS.Uint8Array] buffer
+	 * @param path
+	 * @param buffer
 	 */
 	public preloadFile(path: string, buffer: Uint8Array): void {
 		const inode = this._index.getInode(path);
