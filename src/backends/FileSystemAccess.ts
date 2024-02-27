@@ -72,7 +72,7 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 	public async _sync(p: string, data: Uint8Array, stats: Stats, cred: Cred): Promise<void> {
 		const currentStats = await this.stat(p, cred);
 		if (stats.mtime !== currentStats!.mtime) {
-			await this.writeFile(p, data, null, FileFlag.getFileFlag('w'), currentStats!.mode, cred);
+			await this.writeFile(p, data, FileFlag.getFileFlag('w'), currentStats!.mode, cred);
 		}
 	}
 
@@ -110,7 +110,7 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		}
 	}
 
-	public async writeFile(fname: string, data: any, encoding: string | null, flag: FileFlag, mode: number, cred: Cred, createFile?: boolean): Promise<void> {
+	public async writeFile(fname: string, data: Uint8Array, flag: FileFlag, mode: number, cred: Cred, createFile?: boolean): Promise<void> {
 		const handle = await this.getHandle(dirname(fname));
 		if (handle instanceof FileSystemDirectoryHandle) {
 			const file = await handle.getFileHandle(basename(fname), { create: true });
@@ -122,7 +122,7 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 	}
 
 	public async createFile(p: string, flag: FileFlag, mode: number, cred: Cred): Promise<FileSystemAccessFile> {
-		await this.writeFile(p, new Uint8Array(), null, flag, mode, cred, true);
+		await this.writeFile(p, new Uint8Array(), flag, mode, cred, true);
 		return this.openFile(p, flag, cred);
 	}
 

@@ -1,4 +1,4 @@
-import { BaseFileSystem, FileContents, FileSystemMetadata } from '@browserfs/core/filesystem.js';
+import { BaseFileSystem, FileSystemMetadata } from '@browserfs/core/filesystem.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
 import { FileFlag, ActionType, NoSyncFile } from '@browserfs/core/file.js';
 import { Stats } from '@browserfs/core/stats.js';
@@ -7,7 +7,6 @@ import { FileIndex, isIndexFileInode, isIndexDirInode } from '@browserfs/core/Fi
 import { Cred } from '@browserfs/core/cred.js';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
 import { R_OK } from '@browserfs/core/emulation/constants.js';
-import { decode } from '@browserfs/core/utils.js';
 
 export interface HTTPRequestIndex {
 	[key: string]: string;
@@ -209,13 +208,11 @@ export class HTTPRequest extends BaseFileSystem {
 	/**
 	 * We have the entire file as a buffer; optimize readFile.
 	 */
-	public async readFile(fname: string, encoding: BufferEncoding, flag: FileFlag, cred: Cred): Promise<FileContents> {
+	public async readFile(fname: string, flag: FileFlag, cred: Cred): Promise<Uint8Array> {
 		// Get file.
-		const fd = await this.open(fname, flag, 0o644, cred);
+		const fd: NoSyncFile<HTTPRequest> = await this.open(fname, flag, 0o644, cred);
 		try {
-			const fdCast = <NoSyncFile<HTTPRequest>>fd;
-			const fdBuff = fdCast.getBuffer();
-			return encoding ? decode(fdBuff) : fdBuff;
+			return fd.getBuffer();
 		} finally {
 			await fd.close();
 		}

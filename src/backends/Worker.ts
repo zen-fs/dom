@@ -195,14 +195,14 @@ export class WorkerFS extends BaseFileSystem {
 	public truncate(p: string, len: number, cred: Cred): Promise<void> {
 		return this._rpc('truncate', p, len, cred);
 	}
-	public readFile(fname: string, encoding: BufferEncoding, flag: FileFlag, cred: Cred): Promise<FileContents> {
-		return this._rpc('readFile', fname, encoding, flag, cred);
+	public readFile(fname: string, flag: FileFlag, cred: Cred): Promise<Uint8Array> {
+		return this._rpc('readFile', fname, flag, cred);
 	}
-	public writeFile(fname: string, data: FileContents, encoding: BufferEncoding, flag: FileFlag, mode: number, cred: Cred): Promise<void> {
-		return this._rpc('writeFile', fname, data, encoding, flag, mode, cred);
+	public writeFile(fname: string, data: Uint8Array, flag: FileFlag, mode: number, cred: Cred): Promise<void> {
+		return this._rpc('writeFile', fname, data, flag, mode, cred);
 	}
-	public appendFile(fname: string, data: FileContents, encoding: BufferEncoding, flag: FileFlag, mode: number, cred: Cred): Promise<void> {
-		return this._rpc('appendFile', fname, data, encoding, flag, mode, cred);
+	public appendFile(fname: string, data: Uint8Array, flag: FileFlag, mode: number, cred: Cred): Promise<void> {
+		return this._rpc('appendFile', fname, data, flag, mode, cred);
 	}
 	public chmod(p: string, mode: number, cred: Cred): Promise<void> {
 		return this._rpc('chmod', p, mode, cred);
