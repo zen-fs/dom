@@ -1,7 +1,7 @@
 import { SyncKeyValueStore, SimpleSyncStore, SyncKeyValueFileSystem, SimpleSyncRWTransaction, SyncKeyValueRWTransaction } from '@browserfs/core/backends/SyncStore.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
 import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
-import { decode, encode } from '@browserfs/core/utils.js';
+import { utf16Encode, utf16Decode } from '../utf16coder.js';
 
 /**
  * A synchronous key-value store backed by Storage.
@@ -28,7 +28,7 @@ export class StorageStore implements SyncKeyValueStore, SimpleSyncStore {
 			return;
 		}
 
-		return encode(data);
+		return utf16Decode(data);
 	}
 
 	public put(key: string, data: Uint8Array, overwrite: boolean): boolean {
@@ -37,7 +37,7 @@ export class StorageStore implements SyncKeyValueStore, SimpleSyncStore {
 				// Don't want to overwrite the key!
 				return false;
 			}
-			this._storage.setItem(key, decode(data));
+			this._storage.setItem(key, utf16Encode(data));
 			return true;
 		} catch (e) {
 			throw new ApiError(ErrorCode.ENOSPC, 'Storage is full.');
