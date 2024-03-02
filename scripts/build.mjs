@@ -2,6 +2,14 @@ import { context } from 'esbuild';
 import { parseArgs } from 'node:util';
 import { execSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
+import { default as _externalGlobalPlugin } from 'esbuild-plugin-external-global';
+
+const { externalGlobalPlugin } = _externalGlobalPlugin;
+
+function externalGlobals(pkg, global, mods) {
+  const entries = mods.map(m => [`${pkg}/${m}.js`, global]);
+  return Object.fromEntries(entries);
+}
 
 const options = parseArgs({
 	config: {
@@ -9,6 +17,11 @@ const options = parseArgs({
 		watch: { short: 'w', type: 'boolean', default: false },
 	},
 }).values;
+
+const core_externals = externalGlobals('@browserfs/core', 'BrowserFS', [
+	'ApiError', 'FileIndex', 'backends/AsyncStore', 'backends/SyncStore',
+	'cred', 'file', 'filesystem', 'inode', 'mutex', 'stats', 'utils'
+  ]);
 
 const ctx = await context({
 	entryPoints: ['src/index.ts'],
@@ -20,19 +33,22 @@ const ctx = await context({
 	bundle: true,
 	minify: true,
 	platform: 'browser',
-	plugins: [{ name: 'watcher', setup(build) {
-		build.onStart(() => {
-			if(!options.keep) {
-				rmSync('dist', { force: true, recursive: true });
-			}
+	plugins: [
+		externalGlobalPlugin(core_externals),
+		{ name: 'watcher', setup(build) {
+			build.onStart(() => {
+				if(!options.keep) {
+					rmSync('dist', { force: true, recursive: true });
+				}
 
-			try {
-				execSync('tsc -p tsconfig.json');
-			} catch (e) {
-				console.error('status' in e ? e.toString() : e);
-			}
-		});
-	} }],
+				try {
+					execSync('tsc -p tsconfig.json');
+				} catch (e) {
+					console.error('status' in e ? e.toString() : e);
+				}
+			});
+		} }
+	],
 });
 
 if(options.watch) {
