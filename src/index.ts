@@ -1,3 +1,3 @@
-export * from './backends/FileSystemAccess.js';
-export * from './backends/IndexedDB.js';
-export * from './backends/Storage.js';
+export * from './FileSystemAccess.js';
+export * from './IndexedDB.js';
+export * from './Storage.js';
