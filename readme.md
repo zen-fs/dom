@@ -6,10 +6,9 @@ Please read the BrowserFS documentation!
 
 ## Backends
 
-- `HTTPRequest`: Downloads files on-demand from a webserver using `fetch`.
 - `Storage`: Stores files in a `Storage` object, like `localStorage` and `seesionStorage`.
 - `IndexedDB`: Stores files into an `IndexedDB` object database.
-- `WorkerFS`: Lets you mount the BrowserFS file system configured in the main thread in a WebWorker, or the other way around!
+- `FileSystemAccess`: Store files using the [Web File System API](https://developer.mozilla.org/Web/API/File_System_API).
 
 For more information, see the [API documentation](https://browser-fs.github.io/dom).
 
@@ -26,11 +25,11 @@ npm install @browserfs/dom
 You can use DOM backends, though you must register them if you plan on using `configure`:
 
 ```js
-import { configure, fs, registerBackend } from '@browserfs/core';
+import { configure, fs } from '@browserfs/core';
 import { Storage } from '@browserfs/dom';
 
-registerBackend(Storage);
-await configure({ fs: 'Storage', options: { storage: localStorage } });
+
+await configure({ backend: Storage, storage: localStorage });
 
 if (!fs.existsSync('/test.txt')) {
 	fs.writeFileSync('/test.txt', 'This will persist across reloads!');
