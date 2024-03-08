@@ -11,12 +11,12 @@ Please read the BrowserFS documentation!
 - `IndexedDB`: Stores files into an `IndexedDB` object database.
 - `WorkerFS`: Lets you mount the BrowserFS file system configured in the main thread in a WebWorker, or the other way around!
 
-For more information, see the [API documentation](https://browser-fs.github.io/fs-dom).
+For more information, see the [API documentation](https://browser-fs.github.io/dom).
 
 ## Installing
 
 ```sh
-npm install @browserfs/fs-dom
+npm install @browserfs/dom
 ```
 
 ## Usage
@@ -27,7 +27,7 @@ You can use DOM backends, though you must register them if you plan on using `co
 
 ```js
 import { configure, fs, registerBackend } from '@browserfs/core';
-import { Storage } from '@browserfs/fs-dom';
+import { Storage } from '@browserfs/dom';
 
 registerBackend(Storage);
 await configure({ fs: 'Storage', options: { storage: localStorage } });

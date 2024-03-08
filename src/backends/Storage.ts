@@ -1,14 +1,15 @@
-import { SyncKeyValueStore, SimpleSyncStore, SyncKeyValueFileSystem, SimpleSyncRWTransaction, SyncKeyValueRWTransaction } from '@browserfs/core/backends/SyncStore.js';
+import { SyncStore, SimpleSyncStore, SimpleSyncRWTransaction, SyncRWTransaction, SyncStoreFileSystem } from '@browserfs/core/backends/SyncStore.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
-import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
+import { type Backend } from '@browserfs/core/backends/backend.js';
 import { decode, encode } from '@browserfs/core/utils.js';
+import type { Ino } from '@browserfs/core/inode.js';
 
 /**
  * A synchronous key-value store backed by Storage.
  */
-export class StorageStore implements SyncKeyValueStore, SimpleSyncStore {
-	public name(): string {
-		return StorageFileSystem.Name;
+export class StorageStore implements SyncStore, SimpleSyncStore {
+	public get name(): string {
+		return Storage.name;
 	}
 
 	constructor(protected _storage: Storage) {}
@@ -17,13 +18,13 @@ export class StorageStore implements SyncKeyValueStore, SimpleSyncStore {
 		this._storage.clear();
 	}
 
-	public beginTransaction(type: string): SyncKeyValueRWTransaction {
+	public beginTransaction(type: string): SyncRWTransaction {
 		// No need to differentiate.
 		return new SimpleSyncRWTransaction(this);
 	}
 
-	public get(key: string): Uint8Array | undefined {
-		const data = this._storage.getItem(key);
+	public get(key: Ino): Uint8Array | undefined {
+		const data = this._storage.getItem(key.toString());
 		if (typeof data != 'string') {
 			return;
 		}
@@ -31,63 +32,57 @@ export class StorageStore implements SyncKeyValueStore, SimpleSyncStore {
 		return encode(data);
 	}
 
-	public put(key: string, data: Uint8Array, overwrite: boolean): boolean {
+	public put(key: Ino, data: Uint8Array, overwrite: boolean): boolean {
 		try {
-			if (!overwrite && this._storage.getItem(key) !== null) {
+			if (!overwrite && this._storage.getItem(key.toString()) !== null) {
 				// Don't want to overwrite the key!
 				return false;
 			}
-			this._storage.setItem(key, decode(data));
+			this._storage.setItem(key.toString(), decode(data));
 			return true;
 		} catch (e) {
 			throw new ApiError(ErrorCode.ENOSPC, 'Storage is full.');
 		}
 	}
 
-	public del(key: string): void {
+	public remove(key: Ino): void {
 		try {
-			this._storage.removeItem(key);
+			this._storage.removeItem(key.toString());
 		} catch (e) {
 			throw new ApiError(ErrorCode.EIO, 'Unable to delete key ' + key + ': ' + e);
 		}
 	}
 }
 
-export namespace StorageFileSystem {
+/**
+ * Options to pass to the StorageFileSystem
+ */
+export interface StorageOptions {
 	/**
-	 * Options to pass to the StorageFileSystem
+	 * The Storage to use. Defaults to globalThis.localStorage.
 	 */
-	export interface Options {
-		/**
-		 * The Storage to use. Defaults to globalThis.localStorage.
-		 */
-		storage: Storage;
-	}
+	storage: Storage;
 }
 
 /**
  * A synchronous file system backed by a `Storage` (e.g. localStorage).
  */
-export class StorageFileSystem extends SyncKeyValueFileSystem {
-	public static readonly Name = 'Storage';
+export const Storage: Backend = {
+	name: 'Storage',
 
-	public static Create = CreateBackend.bind(this);
-
-	public static readonly Options: BackendOptions = {
+	options: {
 		storage: {
 			type: 'object',
-			optional: true,
+			required: false,
 			description: 'The Storage to use. Defaults to globalThis.localStorage.',
 		},
-	};
+	},
 
-	public static isAvailable(storage: Storage = globalThis.localStorage): boolean {
-		return storage instanceof Storage;
-	}
-	/**
-	 * Creates a new Storage file system using the contents of `Storage`.
-	 */
-	constructor({ storage = globalThis.localStorage }: StorageFileSystem.Options) {
-		super({ store: new StorageStore(storage) });
-	}
-}
+	isAvailable(storage: Storage = globalThis.localStorage): boolean {
+		return storage instanceof globalThis.Storage;
+	},
+
+	create({ storage = globalThis.localStorage }: StorageOptions) {
+		return new SyncStoreFileSystem({ store: new StorageStore(storage) });
+	},
+};

@@ -1,6 +1,7 @@
-import { AsyncKeyValueROTransaction, AsyncKeyValueRWTransaction, AsyncKeyValueStore, AsyncKeyValueFileSystem } from '@browserfs/core/backends/AsyncStore.js';
+import { AsyncROTransaction, AsyncRWTransaction, AsyncStore, AsyncStoreFileSystem } from '@browserfs/core/backends/AsyncStore.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
-import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
+import type { Backend } from '@browserfs/core/backends/backend.js';
+import type { Ino } from '@browserfs/core/inode.js';
 
 /**
  * Converts a DOMException or a DOMError from an IndexedDB event into a
@@ -20,34 +21,23 @@ function convertError(e: { name: string }, message: string = e.toString()): ApiE
 }
 
 /**
- * Produces a new onerror handler for IDB. Our errors are always fatal, so we
- * handle them generically: Call the user-supplied callback with a translated
- * version of the error, and let the error bubble up.
  * @hidden
  */
-function onErrorHandler(cb: (e: ApiError) => void, code: ErrorCode = ErrorCode.EIO, message: string | null = null): (e?: any) => void {
-	return function (e?: any): void {
-		// Prevent the error from canceling the transaction.
-		e.preventDefault();
-		cb(new ApiError(code, message !== null ? message : undefined));
-	};
-}
-
-/**
- * @hidden
- */
-export class IndexedDBROTransaction implements AsyncKeyValueROTransaction {
+export class IndexedDBROTransaction implements AsyncROTransaction {
 	constructor(public tx: IDBTransaction, public store: IDBObjectStore) {}
 
-	public get(key: string): Promise<Uint8Array> {
+	public get(key: Ino): Promise<Uint8Array> {
 		return new Promise((resolve, reject) => {
 			try {
-				const r: IDBRequest = this.store.get(key);
-				r.onerror = onErrorHandler(reject);
-				r.onsuccess = event => {
+				const req: IDBRequest = this.store.get(key.toString());
+				req.onerror = e => {
+					e.preventDefault();
+					reject(new ApiError(ErrorCode.EIO));
+				};
+				req.onsuccess = () => {
 					// IDB returns the value 'undefined' when you try to get keys that
 					// don't exist. The caller expects this behavior.
-					const result = (<any>event.target).result;
+					const result = req.result;
 					if (result === undefined) {
 						resolve(result);
 					} else {
@@ -65,7 +55,7 @@ export class IndexedDBROTransaction implements AsyncKeyValueROTransaction {
 /**
  * @hidden
  */
-export class IndexedDBRWTransaction extends IndexedDBROTransaction implements AsyncKeyValueRWTransaction, AsyncKeyValueROTransaction {
+export class IndexedDBRWTransaction extends IndexedDBROTransaction implements AsyncRWTransaction, AsyncROTransaction {
 	constructor(tx: IDBTransaction, store: IDBObjectStore) {
 		super(tx, store);
 	}
@@ -73,28 +63,30 @@ export class IndexedDBRWTransaction extends IndexedDBROTransaction implements As
 	/**
 	 * @todo return false when add has a key conflict (no error)
 	 */
-	public put(key: string, data: Uint8Array, overwrite: boolean): Promise<boolean> {
+	public put(key: Ino, data: Uint8Array, overwrite: boolean): Promise<boolean> {
 		return new Promise((resolve, reject) => {
 			try {
-				const r: IDBRequest = overwrite ? this.store.put(data, key) : this.store.add(data, key);
-				r.onerror = onErrorHandler(reject);
-				r.onsuccess = () => {
-					resolve(true);
+				const req: IDBRequest = overwrite ? this.store.put(data, key.toString()) : this.store.add(data, key.toString());
+				req.onerror = e => {
+					e.preventDefault();
+					reject(new ApiError(ErrorCode.EIO));
 				};
+				req.onsuccess = () => resolve(true);
 			} catch (e) {
 				reject(convertError(e));
 			}
 		});
 	}
 
-	public del(key: string): Promise<void> {
+	public remove(key: Ino): Promise<void> {
 		return new Promise((resolve, reject) => {
 			try {
-				const r: IDBRequest = this.store.delete(key);
-				r.onerror = onErrorHandler(reject);
-				r.onsuccess = () => {
-					resolve();
+				const req: IDBRequest = this.store.delete(key.toString());
+				req.onerror = e => {
+					e.preventDefault();
+					reject(new ApiError(ErrorCode.EIO));
 				};
+				req.onsuccess = () => resolve;
 			} catch (e) {
 				reject(convertError(e));
 			}
@@ -102,82 +94,76 @@ export class IndexedDBRWTransaction extends IndexedDBROTransaction implements As
 	}
 
 	public commit(): Promise<void> {
-		return new Promise(resolve => {
-			// Return to the event loop to commit the transaction.
-			setTimeout(resolve, 0);
-		});
+		return new Promise(resolve => setTimeout(resolve, 0));
 	}
 
-	public abort(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			try {
-				this.tx.abort();
-				resolve();
-			} catch (e) {
-				reject(convertError(e));
-			}
-		});
+	public async abort(): Promise<void> {
+		try {
+			this.tx.abort();
+		} catch (e) {
+			throw convertError(e);
+		}
 	}
 }
 
-export class IndexedDBStore implements AsyncKeyValueStore {
-	public static Create(storeName: string, indexedDB: IDBFactory): Promise<IndexedDBStore> {
+export class IndexedDBStore implements AsyncStore {
+	public static create(storeName: string, indexedDB: IDBFactory): Promise<IndexedDBStore> {
 		return new Promise((resolve, reject) => {
-			const openReq: IDBOpenDBRequest = indexedDB.open(storeName, 1);
+			const req: IDBOpenDBRequest = indexedDB.open(storeName, 1);
 
-			openReq.onupgradeneeded = event => {
-				const db: IDBDatabase = (<IDBOpenDBRequest>event.target).result;
-				// Huh. This should never happen; we're at version 1. Why does another
-				// database exist?
+			req.onupgradeneeded = () => {
+				const db: IDBDatabase = req.result;
+				// This should never happen; we're at version 1. Why does another database exist?
 				if (db.objectStoreNames.contains(storeName)) {
 					db.deleteObjectStore(storeName);
 				}
 				db.createObjectStore(storeName);
 			};
 
-			openReq.onsuccess = event => {
-				resolve(new IndexedDBStore((<IDBOpenDBRequest>event.target).result, storeName));
-			};
+			req.onsuccess = () => resolve(new IndexedDBStore(req.result, storeName));
 
-			openReq.onerror = onErrorHandler(reject, ErrorCode.EACCES);
+			req.onerror = e => {
+				e.preventDefault();
+				reject(new ApiError(ErrorCode.EACCES));
+			};
 		});
 	}
 
 	constructor(private db: IDBDatabase, private storeName: string) {}
 
-	public name(): string {
-		return IndexedDBFileSystem.Name + ' - ' + this.storeName;
+	public get name(): string {
+		return IndexedDB.name + ':' + this.storeName;
 	}
 
 	public clear(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			try {
-				const tx = this.db.transaction(this.storeName, 'readwrite'),
-					objectStore = tx.objectStore(this.storeName),
-					r: IDBRequest = objectStore.clear();
-				r.onsuccess = () => {
-					// Use setTimeout to commit transaction.
-					setTimeout(resolve, 0);
+				const req: IDBRequest = this.db.transaction(this.storeName, 'readwrite').objectStore(this.storeName).clear();
+				req.onsuccess = () => setTimeout(resolve, 0);
+				req.onerror = e => {
+					e.preventDefault();
+					reject(new ApiError(ErrorCode.EIO));
 				};
-				r.onerror = onErrorHandler(reject);
 			} catch (e) {
 				reject(convertError(e));
 			}
 		});
 	}
 
-	public beginTransaction(type: 'readonly'): AsyncKeyValueROTransaction;
-	public beginTransaction(type: 'readwrite'): AsyncKeyValueRWTransaction;
-	public beginTransaction(type: 'readonly' | 'readwrite' = 'readonly'): AsyncKeyValueROTransaction {
+	public beginTransaction(type: 'readonly'): AsyncROTransaction;
+	public beginTransaction(type: 'readwrite'): AsyncRWTransaction;
+	public beginTransaction(type: 'readonly' | 'readwrite' = 'readonly'): AsyncROTransaction {
 		const tx = this.db.transaction(this.storeName, type),
 			objectStore = tx.objectStore(this.storeName);
 		if (type === 'readwrite') {
 			return new IndexedDBRWTransaction(tx, objectStore);
-		} else if (type === 'readonly') {
-			return new IndexedDBROTransaction(tx, objectStore);
-		} else {
-			throw new ApiError(ErrorCode.EINVAL, 'Invalid transaction type.');
 		}
+
+		if (type === 'readonly') {
+			return new IndexedDBROTransaction(tx, objectStore);
+		}
+
+		throw new ApiError(ErrorCode.EINVAL, 'Invalid transaction type.');
 	}
 }
 
@@ -206,30 +192,29 @@ export namespace IndexedDBFileSystem {
 /**
  * A file system that uses the IndexedDB key value file system.
  */
-export class IndexedDBFileSystem extends AsyncKeyValueFileSystem {
-	public static readonly Name = 'IndexedDB';
 
-	public static Create = CreateBackend.bind(this);
+export const IndexedDB: Backend = {
+	name: 'IndexedDB',
 
-	public static readonly Options: BackendOptions = {
+	options: {
 		storeName: {
 			type: 'string',
-			optional: true,
+			required: false,
 			description: 'The name of this file system. You can have multiple IndexedDB file systems operating at once, but each must have a different name.',
 		},
 		cacheSize: {
 			type: 'number',
-			optional: true,
+			required: false,
 			description: 'The size of the inode cache. Defaults to 100. A size of 0 or below disables caching.',
 		},
 		idbFactory: {
 			type: 'object',
-			optional: true,
+			required: false,
 			description: 'The IDBFactory to use. Defaults to globalThis.indexedDB.',
 		},
-	};
+	},
 
-	public static isAvailable(idbFactory: IDBFactory = globalThis.indexedDB): boolean {
+	isAvailable(idbFactory: IDBFactory = globalThis.indexedDB): boolean {
 		try {
 			if (!(idbFactory instanceof IDBFactory)) {
 				return false;
@@ -241,13 +226,11 @@ export class IndexedDBFileSystem extends AsyncKeyValueFileSystem {
 		} catch (e) {
 			return false;
 		}
-	}
+	},
 
-	constructor({ cacheSize = 100, storeName = 'browserfs', idbFactory = globalThis.indexedDB }: IndexedDBFileSystem.Options) {
-		super(cacheSize);
-		this._ready = IndexedDBStore.Create(storeName, idbFactory).then(store => {
-			this.init(store);
-			return this;
-		});
-	}
-}
+	create({ cacheSize = 100, storeName = 'browserfs', idbFactory = globalThis.indexedDB }: IndexedDBFileSystem.Options) {
+		const store = IndexedDBStore.create(storeName, idbFactory);
+		const fs = new AsyncStoreFileSystem({ cacheSize, store });
+		return fs;
+	},
+};

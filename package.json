@@ -1,5 +1,5 @@
 {
-	"name": "@browserfs/fs-dom",
+	"name": "@browserfs/dom",
 	"version": "0.0.6",
 	"description": "DOM backends for BrowserFS",
 	"main": "dist/index.js",
@@ -10,15 +10,15 @@
 		"storage"
 	],
 	"type": "module",
-	"homepage": "https://github.com/browser-fs/fs-dom",
-	"author": "dr-vortex <jp@drvortex.dev>",
+	"homepage": "https://github.com/browser-fs/dom",
+	"author": "James P. <jp@drvortex.dev>",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/browser-fs/fs-dom.git"
+		"url": "git+https://github.com/browser-fs/dom.git"
 	},
 	"bugs": {
-		"url": "https://github.com/browser-fs/fs-dom/issues"
+		"url": "https://github.com/browser-fs/dom/issues"
 	},
 	"engines": {
 		"node": ">= 18"
@@ -36,7 +36,7 @@
 	"scripts": {
 		"format": "prettier --write src",
 		"format:check": "prettier --check src",
-		"lint": "eslint src",
+		"lint": "tsc -p tsconfig.json --noEmit && eslint src",
 		"build": "node scripts/build.mjs",
 		"build:docs": "typedoc --out docs --name 'BrowserFS DOM' src/index.ts",
 		"prepublishOnly": "npm run build"
@@ -51,6 +51,6 @@
 		"typescript": "5.2.2"
 	},
 	"dependencies": {
-		"@browserfs/core": "^0.1.0"
+		"@browserfs/core": "^0.2.1"
 	}
 }

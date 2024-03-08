@@ -1,10 +1,10 @@
 import { basename, dirname, join } from '@browserfs/core/emulation/path.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
-import { Cred } from '@browserfs/core/cred.js';
 import { FileFlag, PreloadFile } from '@browserfs/core/file.js';
-import { BaseFileSystem, FileSystemMetadata } from '@browserfs/core/filesystem.js';
+import { AsyncFileSystem, FileSystemMetadata } from '@browserfs/core/filesystem.js';
 import { Stats, FileType } from '@browserfs/core/stats.js';
-import { CreateBackend, type BackendOptions } from '@browserfs/core/backends/backend.js';
+import type { Backend } from '@browserfs/core/backends/backend.js';
+import type { Cred } from '@browserfs/core/cred.js';
 
 declare global {
 	interface FileSystemDirectoryHandle {
@@ -15,7 +15,7 @@ declare global {
 	}
 }
 
-interface FileSystemAccessFileSystemOptions {
+interface FileSystemAccessOptions {
 	handle: FileSystemDirectoryHandle;
 }
 
@@ -32,9 +32,13 @@ export class FileSystemAccessFile extends PreloadFile<FileSystemAccessFileSystem
 		super(_fs, _path, _flag, _stat, contents);
 	}
 
+	public syncSync(): void {
+		throw new ApiError(ErrorCode.ENOTSUP);
+	}
+
 	public async sync(): Promise<void> {
 		if (this.isDirty()) {
-			await this._fs._sync(this.getPath(), this.getBuffer(), this.getStats(), Cred.Root);
+			await this.fs.sync(this.path, this.buffer, this.stats);
 			this.resetDirty();
 		}
 	}
@@ -42,22 +46,20 @@ export class FileSystemAccessFile extends PreloadFile<FileSystemAccessFileSystem
 	public async close(): Promise<void> {
 		await this.sync();
 	}
+
+	public closeSync(): void {
+		throw new ApiError(ErrorCode.ENOTSUP);
+	}
 }
 
-export class FileSystemAccessFileSystem extends BaseFileSystem {
-	public static readonly Name = 'FileSystemAccess';
-
-	public static Create = CreateBackend.bind(this);
-
-	public static readonly Options: BackendOptions = {};
-
-	public static isAvailable(): boolean {
-		return typeof FileSystemHandle === 'function';
-	}
-
+export class FileSystemAccessFileSystem extends AsyncFileSystem {
 	private _handles: Map<string, FileSystemHandle> = new Map();
 
-	public constructor({ handle }: FileSystemAccessFileSystemOptions) {
+	public async ready(): Promise<this> {
+		return this;
+	}
+
+	public constructor({ handle }: FileSystemAccessOptions) {
 		super();
 		this._handles.set('/', handle);
 	}
@@ -69,67 +71,70 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		};
 	}
 
-	public async _sync(p: string, data: Uint8Array, stats: Stats, cred: Cred): Promise<void> {
-		const currentStats = await this.stat(p, cred);
+	public async sync(p: string, data: Uint8Array, stats: Stats): Promise<void> {
+		const currentStats = await this.stat(p);
 		if (stats.mtime !== currentStats!.mtime) {
-			await this.writeFile(p, data, FileFlag.getFileFlag('w'), currentStats!.mode, cred);
+			await this.writeFile(p, data, FileFlag.FromString('w'), currentStats!.mode);
 		}
 	}
 
-	public async rename(oldPath: string, newPath: string, cred: Cred): Promise<void> {
+	public async rename(oldPath: string, newPath: string): Promise<void> {
 		try {
 			const handle = await this.getHandle(oldPath);
 			if (handle instanceof FileSystemDirectoryHandle) {
-				const files = await this.readdir(oldPath, cred);
+				const files = await this.readdir(oldPath);
 
-				await this.mkdir(newPath, 'wx', cred);
+				await this.mkdir(newPath, 0o77);
 				if (files.length === 0) {
-					await this.unlink(oldPath, cred);
+					await this.unlink(oldPath);
 				} else {
 					for (const file of files) {
-						await this.rename(join(oldPath, file), join(newPath, file), cred);
-						await this.unlink(oldPath, cred);
+						await this.rename(join(oldPath, file), join(newPath, file));
+						await this.unlink(oldPath);
 					}
 				}
 			}
-			if (handle instanceof FileSystemFileHandle) {
-				const oldFile = await handle.getFile(),
-					destFolder = await this.getHandle(dirname(newPath));
-				if (destFolder instanceof FileSystemDirectoryHandle) {
-					const newFile = await destFolder.getFileHandle(basename(newPath), { create: true });
-					const writable = await newFile.createWritable();
-					const buffer = await oldFile.arrayBuffer();
-					await writable.write(buffer);
-
-					writable.close();
-					await this.unlink(oldPath, cred);
-				}
+			if (!(handle instanceof FileSystemFileHandle)) {
+				return;
 			}
+			const oldFile = await handle.getFile(),
+				destFolder = await this.getHandle(dirname(newPath));
+			if (!(destFolder instanceof FileSystemDirectoryHandle)) {
+				return;
+			}
+			const newFile = await destFolder.getFileHandle(basename(newPath), { create: true });
+			const writable = await newFile.createWritable();
+			const buffer = await oldFile.arrayBuffer();
+			await writable.write(buffer);
+
+			writable.close();
+			await this.unlink(oldPath);
 		} catch (err) {
 			handleError(oldPath, err);
 		}
 	}
 
-	public async writeFile(fname: string, data: Uint8Array, flag: FileFlag, mode: number, cred: Cred, createFile?: boolean): Promise<void> {
+	public async writeFile(fname: string, data: Uint8Array, flag: FileFlag, mode: number): Promise<void> {
 		const handle = await this.getHandle(dirname(fname));
-		if (handle instanceof FileSystemDirectoryHandle) {
-			const file = await handle.getFileHandle(basename(fname), { create: true });
-			const writable = await file.createWritable();
-			await writable.write(data);
-			await writable.close();
-			//return createFile ? this.newFile(fname, flag, data) : undefined;
+		if (!(handle instanceof FileSystemDirectoryHandle)) {
+			return;
 		}
+
+		const file = await handle.getFileHandle(basename(fname), { create: true });
+		const writable = await file.createWritable();
+		await writable.write(data);
+		await writable.close();
 	}
 
-	public async createFile(p: string, flag: FileFlag, mode: number, cred: Cred): Promise<FileSystemAccessFile> {
-		await this.writeFile(p, new Uint8Array(), flag, mode, cred, true);
-		return this.openFile(p, flag, cred);
+	public async createFile(p: string, flag: FileFlag, mode: number): Promise<FileSystemAccessFile> {
+		await this.writeFile(p, new Uint8Array(), flag, mode);
+		return this.openFile(p, flag);
 	}
 
-	public async stat(path: string, cred: Cred): Promise<Stats> {
+	public async stat(path: string): Promise<Stats> {
 		const handle = await this.getHandle(path);
 		if (!handle) {
-			throw ApiError.FileError(ErrorCode.EINVAL, path);
+			throw ApiError.OnPath(ErrorCode.ENOENT, path);
 		}
 		if (handle instanceof FileSystemDirectoryHandle) {
 			return new Stats(FileType.DIRECTORY, 4096);
@@ -140,16 +145,7 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		}
 	}
 
-	public async exists(p: string, cred: Cred): Promise<boolean> {
-		try {
-			await this.getHandle(p);
-			return true;
-		} catch (e) {
-			return false;
-		}
-	}
-
-	public async openFile(path: string, flags: FileFlag, cred: Cred): Promise<FileSystemAccessFile> {
+	public async openFile(path: string, flags: FileFlag): Promise<FileSystemAccessFile> {
 		const handle = await this.getHandle(path);
 		if (handle instanceof FileSystemFileHandle) {
 			const file = await handle.getFile();
@@ -158,7 +154,7 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		}
 	}
 
-	public async unlink(path: string, cred: Cred): Promise<void> {
+	public async unlink(path: string): Promise<void> {
 		const handle = await this.getHandle(dirname(path));
 		if (handle instanceof FileSystemDirectoryHandle) {
 			try {
@@ -169,15 +165,17 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		}
 	}
 
-	public async rmdir(path: string, cred: Cred): Promise<void> {
-		return this.unlink(path, cred);
+	public async link(srcpath: string, dstpath: string, cred: Cred): Promise<void> {
+		throw new ApiError(ErrorCode.ENOTSUP);
 	}
 
-	public async mkdir(p: string, mode: any, cred: Cred): Promise<void> {
-		const overwrite = mode && mode.flag && mode.flag.includes('w') && !mode.flag.includes('x');
+	public async rmdir(path: string): Promise<void> {
+		return this.unlink(path);
+	}
 
+	public async mkdir(p: string, mode: number): Promise<void> {
 		const existingHandle = await this.getHandle(p);
-		if (existingHandle && !overwrite) {
+		if (existingHandle) {
 			throw ApiError.EEXIST(p);
 		}
 
@@ -187,7 +185,7 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		}
 	}
 
-	public async readdir(path: string, cred: Cred): Promise<string[]> {
+	public async readdir(path: string): Promise<string[]> {
 		const handle = await this.getHandle(path);
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
 			throw ApiError.ENOTDIR(path);
@@ -244,3 +242,17 @@ export class FileSystemAccessFileSystem extends BaseFileSystem {
 		await getHandleParts(pathParts);
 	}
 }
+
+export const FileSystemAccess: Backend = {
+	name: 'FileSystemAccess',
+
+	options: {},
+
+	isAvailable(): boolean {
+		return typeof FileSystemHandle === 'function';
+	},
+
+	create(options: FileSystemAccessOptions) {
+		return new FileSystemAccessFileSystem(options);
+	},
+};
