@@ -6,7 +6,7 @@ Please read the BrowserFS documentation!
 
 ## Backends
 
-- `Storage`: Stores files in a `Storage` object, like `localStorage` and `seesionStorage`.
+- `Storage`: Stores files in a `Storage` object, like `localStorage` and `sessionStorage`.
 - `IndexedDB`: Stores files into an `IndexedDB` object database.
 - `FileSystemAccess`: Store files using the [Web File System API](https://developer.mozilla.org/Web/API/File_System_API).
 
@@ -21,8 +21,6 @@ npm install @browserfs/dom
 ## Usage
 
 > 🛈 The examples are written in ESM. If you are using CJS, you can `require` the package. If running in a browser you can add a script tag to your HTML pointing to the `browser.min.js` and use BrowserFS DOM via the global `BrowserFS_DOM` object.
-
-You can use DOM backends, though you must register them if you plan on using `configure`:
 
 ```js
 import { configure, fs } from '@browserfs/core';
