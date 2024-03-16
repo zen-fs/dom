@@ -1,4 +1,4 @@
-import { AsyncROTransaction, AsyncRWTransaction, AsyncStore, AsyncStoreFileSystem } from '@browserfs/core/backends/AsyncStore.js';
+import { AsyncROTransaction, AsyncRWTransaction, AsyncStore, AsyncStoreFS } from '@browserfs/core/backends/AsyncStore.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
 import type { Backend } from '@browserfs/core/backends/backend.js';
 import type { Ino } from '@browserfs/core/inode.js';
@@ -129,7 +129,7 @@ export class IndexedDBStore implements AsyncStore {
 		});
 	}
 
-	constructor(private db: IDBDatabase, private storeName: string) {}
+	constructor(protected db: IDBDatabase, protected storeName: string) {}
 
 	public get name(): string {
 		return IndexedDB.name + ':' + this.storeName;
@@ -167,26 +167,24 @@ export class IndexedDBStore implements AsyncStore {
 	}
 }
 
-export namespace IndexedDBFileSystem {
+/**
+ * Configuration options for the IndexedDB file system.
+ */
+export interface IndexedDBOptions {
 	/**
-	 * Configuration options for the IndexedDB file system.
+	 * The name of this file system. You can have multiple IndexedDB file systems operating at once, but each must have a different name.
 	 */
-	export interface Options {
-		/**
-		 * The name of this file system. You can have multiple IndexedDB file systems operating at once, but each must have a different name.
-		 */
-		storeName?: string;
+	storeName?: string;
 
-		/**
-		 * The size of the inode cache. Defaults to 100. A size of 0 or below disables caching.
-		 */
-		cacheSize?: number;
+	/**
+	 * The size of the inode cache. Defaults to 100. A size of 0 or below disables caching.
+	 */
+	cacheSize?: number;
 
-		/**
-		 * The IDBFactory to use. Defaults to `globalThis.indexedDB`.
-		 */
-		idbFactory?: IDBFactory;
-	}
+	/**
+	 * The IDBFactory to use. Defaults to `globalThis.indexedDB`.
+	 */
+	idbFactory?: IDBFactory;
 }
 
 /**
@@ -219,18 +217,19 @@ export const IndexedDB: Backend = {
 			if (!(idbFactory instanceof IDBFactory)) {
 				return false;
 			}
-			const req = idbFactory.open('__browserfs_test__');
+			const req = idbFactory.open('__browserfs_test');
 			if (!req) {
 				return false;
 			}
+			req.onsuccess = () => idbFactory.deleteDatabase('__browserfs_test');
 		} catch (e) {
 			return false;
 		}
 	},
 
-	create({ cacheSize = 100, storeName = 'browserfs', idbFactory = globalThis.indexedDB }: IndexedDBFileSystem.Options) {
+	create({ cacheSize = 100, storeName = 'browserfs', idbFactory = globalThis.indexedDB }: IndexedDBOptions) {
 		const store = IndexedDBStore.create(storeName, idbFactory);
-		const fs = new AsyncStoreFileSystem({ cacheSize, store });
+		const fs = new AsyncStoreFS({ cacheSize, store });
 		return fs;
 	},
 };

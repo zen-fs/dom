@@ -1,4 +1,4 @@
-import { SyncStore, SimpleSyncStore, SimpleSyncRWTransaction, SyncRWTransaction, SyncStoreFileSystem } from '@browserfs/core/backends/SyncStore.js';
+import { SyncStore, SimpleSyncStore, SimpleSyncRWTransaction, SyncRWTransaction, SyncStoreFS } from '@browserfs/core/backends/SyncStore.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
 import { type Backend } from '@browserfs/core/backends/backend.js';
 import { decode, encode } from '@browserfs/core/utils.js';
@@ -18,7 +18,7 @@ export class StorageStore implements SyncStore, SimpleSyncStore {
 		this._storage.clear();
 	}
 
-	public beginTransaction(type: string): SyncRWTransaction {
+	public beginTransaction(): SyncRWTransaction {
 		// No need to differentiate.
 		return new SimpleSyncRWTransaction(this);
 	}
@@ -83,6 +83,6 @@ export const Storage: Backend = {
 	},
 
 	create({ storage = globalThis.localStorage }: StorageOptions) {
-		return new SyncStoreFileSystem({ store: new StorageStore(storage) });
+		return new SyncStoreFS({ store: new StorageStore(storage) });
 	},
 };

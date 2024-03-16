@@ -1,10 +1,9 @@
 import { basename, dirname, join } from '@browserfs/core/emulation/path.js';
 import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
 import { FileFlag, PreloadFile } from '@browserfs/core/file.js';
-import { AsyncFileSystem, FileSystemMetadata } from '@browserfs/core/filesystem.js';
+import { FileSystem, Async, type FileSystemMetadata } from '@browserfs/core/filesystem.js';
 import { Stats, FileType } from '@browserfs/core/stats.js';
 import type { Backend } from '@browserfs/core/backends/backend.js';
-import type { Cred } from '@browserfs/core/cred.js';
 
 declare global {
 	interface FileSystemDirectoryHandle {
@@ -27,8 +26,8 @@ const handleError = (path = '', error: Error) => {
 	throw error as ApiError;
 };
 
-export class FileSystemAccessFile extends PreloadFile<FileSystemAccessFileSystem> {
-	constructor(_fs: FileSystemAccessFileSystem, _path: string, _flag: FileFlag, _stat: Stats, contents?: Uint8Array) {
+export class FileSystemAccessFile extends PreloadFile<FileSystemAccessFS> {
+	constructor(_fs: FileSystemAccessFS, _path: string, _flag: FileFlag, _stat: Stats, contents?: Uint8Array) {
 		super(_fs, _path, _flag, _stat, contents);
 	}
 
@@ -52,7 +51,7 @@ export class FileSystemAccessFile extends PreloadFile<FileSystemAccessFileSystem
 	}
 }
 
-export class FileSystemAccessFileSystem extends AsyncFileSystem {
+export class FileSystemAccessFS extends Async(FileSystem) {
 	private _handles: Map<string, FileSystemHandle> = new Map();
 
 	public async ready(): Promise<this> {
@@ -64,17 +63,17 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 		this._handles.set('/', handle);
 	}
 
-	public get metadata(): FileSystemMetadata {
+	public metadata(): FileSystemMetadata {
 		return {
-			...super.metadata,
-			name: FileSystemAccessFileSystem.Name,
+			...super.metadata(),
+			name: 'FileSystemAccess',
 		};
 	}
 
 	public async sync(p: string, data: Uint8Array, stats: Stats): Promise<void> {
 		const currentStats = await this.stat(p);
 		if (stats.mtime !== currentStats!.mtime) {
-			await this.writeFile(p, data, FileFlag.FromString('w'), currentStats!.mode);
+			await this.writeFile(p, data);
 		}
 	}
 
@@ -84,8 +83,8 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 			if (handle instanceof FileSystemDirectoryHandle) {
 				const files = await this.readdir(oldPath);
 
-				await this.mkdir(newPath, 0o77);
-				if (files.length === 0) {
+				await this.mkdir(newPath);
+				if (files.length == 0) {
 					await this.unlink(oldPath);
 				} else {
 					for (const file of files) {
@@ -114,7 +113,7 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 		}
 	}
 
-	public async writeFile(fname: string, data: Uint8Array, flag: FileFlag, mode: number): Promise<void> {
+	public async writeFile(fname: string, data: Uint8Array): Promise<void> {
 		const handle = await this.getHandle(dirname(fname));
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
 			return;
@@ -126,9 +125,9 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 		await writable.close();
 	}
 
-	public async createFile(p: string, flag: FileFlag, mode: number): Promise<FileSystemAccessFile> {
-		await this.writeFile(p, new Uint8Array(), flag, mode);
-		return this.openFile(p, flag);
+	public async createFile(path: string, flag: FileFlag): Promise<FileSystemAccessFile> {
+		await this.writeFile(path, new Uint8Array());
+		return this.openFile(path, flag);
 	}
 
 	public async stat(path: string): Promise<Stats> {
@@ -141,16 +140,17 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 		}
 		if (handle instanceof FileSystemFileHandle) {
 			const { lastModified, size } = await handle.getFile();
-			return new Stats(FileType.FILE, size, undefined, undefined, lastModified);
+			return new Stats(FileType.FILE, size, null, Date.now(), lastModified);
 		}
 	}
 
-	public async openFile(path: string, flags: FileFlag): Promise<FileSystemAccessFile> {
+	public async openFile(path: string, flag: FileFlag): Promise<FileSystemAccessFile> {
 		const handle = await this.getHandle(path);
 		if (handle instanceof FileSystemFileHandle) {
 			const file = await handle.getFile();
-			const buffer = await file.arrayBuffer();
-			return this.newFile(path, flags, buffer, file.size, file.lastModified);
+			const data = new Uint8Array(await file.arrayBuffer());
+			const stats = new Stats(FileType.FILE, file.size, null, Date.now(), file.lastModified);
+			return new FileSystemAccessFile(this, path, flag, stats, data);
 		}
 	}
 
@@ -165,7 +165,7 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 		}
 	}
 
-	public async link(srcpath: string, dstpath: string, cred: Cred): Promise<void> {
+	public async link(): Promise<void> {
 		throw new ApiError(ErrorCode.ENOTSUP);
 	}
 
@@ -173,15 +173,15 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 		return this.unlink(path);
 	}
 
-	public async mkdir(p: string, mode: number): Promise<void> {
-		const existingHandle = await this.getHandle(p);
+	public async mkdir(path: string): Promise<void> {
+		const existingHandle = await this.getHandle(path);
 		if (existingHandle) {
-			throw ApiError.EEXIST(p);
+			throw ApiError.EEXIST(path);
 		}
 
-		const handle = await this.getHandle(dirname(p));
+		const handle = await this.getHandle(dirname(path));
 		if (handle instanceof FileSystemDirectoryHandle) {
-			await handle.getDirectoryHandle(basename(p), { create: true });
+			await handle.getDirectoryHandle(basename(path), { create: true });
 		}
 	}
 
@@ -197,11 +197,7 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 		return _keys;
 	}
 
-	private newFile(path: string, flag: FileFlag, data: ArrayBuffer, size?: number, lastModified?: number): FileSystemAccessFile {
-		return new FileSystemAccessFile(this, path, flag, new Stats(FileType.FILE, size || 0, undefined, undefined, lastModified || new Date().getTime()), new Uint8Array(data));
-	}
-
-	private async getHandle(path: string): Promise<FileSystemHandle> {
+	protected async getHandle(path: string): Promise<FileSystemHandle> {
 		if (this._handles.has(path)) {
 			return this._handles.get(path);
 		}
@@ -223,11 +219,11 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 			const handle = this._handles.get(walkedPath) as FileSystemDirectoryHandle;
 
 			try {
-				return await continueWalk(await handle.getDirectoryHandle(pathPart));
+				return continueWalk(await handle.getDirectoryHandle(pathPart));
 			} catch (error) {
 				if (error.name === 'TypeMismatchError') {
 					try {
-						return await continueWalk(await handle.getFileHandle(pathPart));
+						return continueWalk(await handle.getFileHandle(pathPart));
 					} catch (err) {
 						handleError(walkingPath, err);
 					}
@@ -239,20 +235,26 @@ export class FileSystemAccessFileSystem extends AsyncFileSystem {
 			}
 		};
 
-		await getHandleParts(pathParts);
+		return await getHandleParts(pathParts);
 	}
 }
 
 export const FileSystemAccess: Backend = {
 	name: 'FileSystemAccess',
 
-	options: {},
+	options: {
+		handle: {
+			type: 'object',
+			required: true,
+			description: 'The directory handle to use for the root',
+		},
+	},
 
 	isAvailable(): boolean {
-		return typeof FileSystemHandle === 'function';
+		return typeof FileSystemHandle == 'function';
 	},
 
 	create(options: FileSystemAccessOptions) {
-		return new FileSystemAccessFileSystem(options);
+		return new FileSystemAccessFS(options);
 	},
 };
