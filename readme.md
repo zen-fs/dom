@@ -3,7 +3,7 @@
 [BrowserFS](https://github.com/browser-fs/core) backends for DOM APIs. DOM APIs are _only_ available natively in browsers.
 
 > [!IMPORTANT]
-> Please read the BrowserFS documentation!
+> Please read the BrowserFS core documentation!
 
 ## Backends
 
