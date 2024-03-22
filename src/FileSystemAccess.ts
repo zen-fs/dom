@@ -1,9 +1,9 @@
-import { basename, dirname, join } from '@browserfs/core/emulation/path.js';
-import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
-import { FileFlag, PreloadFile } from '@browserfs/core/file.js';
-import { FileSystem, Async, type FileSystemMetadata } from '@browserfs/core/filesystem.js';
-import { Stats, FileType } from '@browserfs/core/stats.js';
-import type { Backend } from '@browserfs/core/backends/backend.js';
+import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
+import { ApiError, ErrorCode } from '@zenfs/core/ApiError.js';
+import { FileFlag, PreloadFile } from '@zenfs/core/file.js';
+import { FileSystem, Async, type FileSystemMetadata } from '@zenfs/core/filesystem.js';
+import { Stats, FileType } from '@zenfs/core/stats.js';
+import type { Backend } from '@zenfs/core/backends/backend.js';
 
 declare global {
 	interface FileSystemDirectoryHandle {

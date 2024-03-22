@@ -1,11 +1,11 @@
-import { AsyncROTransaction, AsyncRWTransaction, AsyncStore, AsyncStoreFS } from '@browserfs/core/backends/AsyncStore.js';
-import { ApiError, ErrorCode } from '@browserfs/core/ApiError.js';
-import type { Backend } from '@browserfs/core/backends/backend.js';
-import type { Ino } from '@browserfs/core/inode.js';
+import { AsyncROTransaction, AsyncRWTransaction, AsyncStore, AsyncStoreFS } from '@zenfs/core/backends/AsyncStore.js';
+import { ApiError, ErrorCode } from '@zenfs/core/ApiError.js';
+import type { Backend } from '@zenfs/core/backends/backend.js';
+import type { Ino } from '@zenfs/core/inode.js';
 
 /**
  * Converts a DOMException or a DOMError from an IndexedDB event into a
- * standardized BrowserFS API error.
+ * standardized ZenFS API error.
  * @hidden
  */
 function convertError(e: { name: string }, message: string = e.toString()): ApiError {
@@ -217,18 +217,18 @@ export const IndexedDB: Backend = {
 			if (!(idbFactory instanceof IDBFactory)) {
 				return false;
 			}
-			const req = idbFactory.open('__browserfs_test');
+			const req = idbFactory.open('__zenfs_test');
 			if (!req) {
 				return false;
 			}
-			req.onsuccess = () => idbFactory.deleteDatabase('__browserfs_test');
+			req.onsuccess = () => idbFactory.deleteDatabase('__zenfs_test');
 		} catch (e) {
 			return false;
 		}
 		return true;
 	},
 
-	create({ cacheSize = 100, storeName = 'browserfs', idbFactory = globalThis.indexedDB }: IndexedDBOptions) {
+	create({ cacheSize = 100, storeName = 'zenfs', idbFactory = globalThis.indexedDB }: IndexedDBOptions) {
 		const store = IndexedDBStore.create(storeName, idbFactory);
 		const fs = new AsyncStoreFS({ cacheSize, store });
 		return fs;

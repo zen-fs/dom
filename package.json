@@ -1,7 +1,7 @@
 {
-	"name": "@browserfs/dom",
+	"name": "@zenfs/dom",
 	"version": "0.1.1",
-	"description": "DOM backends for BrowserFS",
+	"description": "DOM backends for ZenFS",
 	"main": "dist/index.js",
 	"types": "dist",
 	"keywords": [
@@ -10,15 +10,15 @@
 		"storage"
 	],
 	"type": "module",
-	"homepage": "https://github.com/browser-fs/dom",
+	"homepage": "https://github.com/zen-fs/dom",
 	"author": "James P. <jp@drvortex.dev>",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/browser-fs/dom.git"
+		"url": "git+https://github.com/zen-fs/dom.git"
 	},
 	"bugs": {
-		"url": "https://github.com/browser-fs/dom/issues"
+		"url": "https://github.com/zen-fs/dom/issues"
 	},
 	"engines": {
 		"node": ">= 18"
@@ -38,7 +38,7 @@
 		"format:check": "prettier --check src",
 		"lint": "tsc -p tsconfig.json --noEmit && eslint src",
 		"build": "node scripts/build.mjs",
-		"build:docs": "typedoc --out docs --name 'BrowserFS DOM' src/index.ts",
+		"build:docs": "typedoc --out docs --name 'ZenFS DOM' src/index.ts",
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
@@ -51,6 +51,6 @@
 		"typescript": "5.2.2"
 	},
 	"peerDependencies": {
-		"@browserfs/core": "^0.4.0"
+		"@zenfs/core": "^0.4.0"
 	}
 }

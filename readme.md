@@ -1,9 +1,9 @@
-# BrowserFS DOM Backends
+# ZenFS DOM Backends
 
-[BrowserFS](https://github.com/browser-fs/core) backends for DOM APIs. DOM APIs are _only_ available natively in browsers.
+[ZenFS](https://github.com/zen-fs/core) backends for DOM APIs. DOM APIs are _only_ available natively in browsers.
 
 > [!IMPORTANT]
-> Please read the BrowserFS core documentation!
+> Please read the ZenFS core documentation!
 
 ## Backends
 
@@ -11,16 +11,16 @@
 -   `IndexedDB`: Stores files into an `IndexedDB` object database.
 -   `FileSystemAccess`: Store files using the [Web File System API](https://developer.mozilla.org/Web/API/File_System_API).
 
-For more information, see the [API documentation](https://browser-fs.github.io/dom).
+For more information, see the [API documentation](https://zen-fs.github.io/dom).
 
 ## Usage
 
 > [!NOTE]  
-> The examples are written in ESM. If you are using CJS, you can `require` the package. If running in a browser you can add a script tag to your HTML pointing to the `browser.min.js` and use BrowserFS DOM via the global `BrowserFS_DOM` object.
+> The examples are written in ESM. If you are using CJS, you can `require` the package. If running in a browser you can add a script tag to your HTML pointing to the `browser.min.js` and use ZenFS DOM via the global `ZenFS_DOM` object.
 
 ```js
-import { configure, fs } from '@browserfs/core';
-import { Storage } from '@browserfs/dom';
+import { configure, fs } from '@zenfs/core';
+import { Storage } from '@zenfs/dom';
 
 await configure({ backend: Storage, storage: localStorage });
 
