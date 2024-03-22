@@ -225,6 +225,7 @@ export const IndexedDB: Backend = {
 		} catch (e) {
 			return false;
 		}
+		return true;
 	},
 
 	create({ cacheSize = 100, storeName = 'browserfs', idbFactory = globalThis.indexedDB }: IndexedDBOptions) {

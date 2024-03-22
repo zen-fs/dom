@@ -27,7 +27,7 @@ const ctx = await context({
 			}
 
 			try {
-				execSync('tsc -p tsconfig.json');
+				execSync('npx tsc -p tsconfig.json', { stdio: 'inherit' });
 			} catch (e) {
 				console.error('status' in e ? e.toString() : e);
 			}

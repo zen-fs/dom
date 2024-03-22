@@ -136,11 +136,11 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 			throw ApiError.OnPath(ErrorCode.ENOENT, path);
 		}
 		if (handle instanceof FileSystemDirectoryHandle) {
-			return new Stats(FileType.DIRECTORY, 4096);
+			return new Stats({ mode: 0o777 | FileType.DIRECTORY, size: 4096 });
 		}
 		if (handle instanceof FileSystemFileHandle) {
 			const { lastModified, size } = await handle.getFile();
-			return new Stats(FileType.FILE, size, null, Date.now(), lastModified);
+			return new Stats({ mode: 0o777 | FileType.FILE, size, mtimeMs: lastModified });
 		}
 	}
 
@@ -149,7 +149,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 		if (handle instanceof FileSystemFileHandle) {
 			const file = await handle.getFile();
 			const data = new Uint8Array(await file.arrayBuffer());
-			const stats = new Stats(FileType.FILE, file.size, null, Date.now(), file.lastModified);
+			const stats = new Stats({ mode: 0o777 | FileType.FILE, size: file.size, mtimeMs: file.lastModified });
 			return new FileSystemAccessFile(this, path, flag, stats, data);
 		}
 	}
