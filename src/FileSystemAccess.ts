@@ -14,7 +14,7 @@ declare global {
 	}
 }
 
-interface FileSystemAccessOptions {
+export interface FileSystemAccessOptions {
 	handle: FileSystemDirectoryHandle;
 }
 
