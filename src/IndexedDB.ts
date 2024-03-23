@@ -24,7 +24,10 @@ function convertError(e: { name: string }, message: string = e.toString()): ApiE
  * @hidden
  */
 export class IndexedDBROTransaction implements AsyncROTransaction {
-	constructor(public tx: IDBTransaction, public store: IDBObjectStore) {}
+	constructor(
+		public tx: IDBTransaction,
+		public store: IDBObjectStore
+	) {}
 
 	public get(key: Ino): Promise<Uint8Array> {
 		return new Promise((resolve, reject) => {
@@ -129,7 +132,10 @@ export class IndexedDBStore implements AsyncStore {
 		});
 	}
 
-	constructor(protected db: IDBDatabase, protected storeName: string) {}
+	constructor(
+		protected db: IDBDatabase,
+		protected storeName: string
+	) {}
 
 	public get name(): string {
 		return IndexedDB.name + ':' + this.storeName;

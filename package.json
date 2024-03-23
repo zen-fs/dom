@@ -34,8 +34,8 @@
 		}
 	},
 	"scripts": {
-		"format": "prettier --write src",
-		"format:check": "prettier --check src",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
 		"lint": "tsc -p tsconfig.json --noEmit && eslint src",
 		"build": "node scripts/build.mjs",
 		"build:docs": "typedoc --out docs --name 'ZenFS DOM' src/index.ts",
@@ -46,7 +46,7 @@
 		"@typescript-eslint/parser": "^5.55.0",
 		"esbuild": "^0.17.18",
 		"eslint": "^8.36.0",
-		"prettier": "^2.8.7",
+		"prettier": "^3.2.5",
 		"typedoc": "^0.25.1",
 		"typescript": "5.2.2"
 	},
