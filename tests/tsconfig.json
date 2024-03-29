@@ -1,0 +1,16 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"baseUrl": "../",
+		"paths": {
+			"fixtures/*": ["tests/fixtures/*"],
+			"helpers/*": ["tests/helpers/*"],
+			"utils/*": ["tests/utils/*"],
+			"mocks/*": ["tests/mocks/*"],
+			"app/*": ["src/*"],
+			"*": ["src/*"]
+		},
+		"allowJs": true
+	},
+	"include": ["../src/**/*", "../tests/**/*"]
+}

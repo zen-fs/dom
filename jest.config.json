@@ -1,23 +1,16 @@
 {
-	"preset": "ts-jest/presets/default-esm",
-	"testEnvironment": "node",
-	"extensionsToTreatAsEsm": [
-		".ts"
-	],
-	"testMatch": [
-		"./**/*.test.ts"
-	],
+	"testMatch": ["<rootDir>/tests/**/*.(spec|test).ts"],
+	"extensionsToTreatAsEsm": [".ts"],
 	"moduleNameMapper": {
-		"^(\\.{1,2}/.*)\\.js$": "$1"
+		"^(\\.{1,2}/.*)\\.js$": "$1",
+		"^((?:fixtures|helpers|utils|mocks)/.*)\\.js$": "<rootDir>/tests/$1",
+		"^((?:app)/.*)\\.js$": "<rootDir>/src/$1",
+		"^(.*)\\.js$": ["<rootDir>/src/$1", "$1.js"],
+		"^(fixtures/.*)$": "<rootDir>/tests/$1"
 	},
-	"transform": {
-		"^.+\\.ts$": [
-			"ts-jest",
-			{
-				"tsconfig": "test/tsconfig.json",
-				"useESM": true
-			}
-		]
-	},
-	"verbose": true
+	"transformIgnorePatterns": ["/node_modules/(?!(@browserfs)/)"],
+	"transform": {"(\\.ts$|@browserfs)": ["ts-jest", {
+		"tsconfig": "<rootDir>/tests/tsconfig.json",
+		"useESM": true
+	}]}
 }
