@@ -1,0 +1,219 @@
+export type randomdatablock = {
+    readonly indices: number[],
+    readonly buffer: ArrayBufferLike,
+    readonly u8array: Uint8Array,
+    readonly length: number
+  };
+  export const getRandomDatasetList = ()=> (
+    Object.entries(randomIndicies).map(([id,dataset]) => [String(id),
+      Object.entries(dataset).map(([id,indices]) => [Number(id), {
+        get indices(){ return indices.slice() },
+        get buffer(){ return getRandomData(indices).buffer },
+        get u8array(){ return getRandomData(indices) },
+        get length(){ return getRandomDataLength(indices) }
+      }])
+    ]) as [string, [number, randomdatablock][]][]
+  );
+  export const getRandomDataLength = (indices: number[])=> {
+    const chunks = indices.map(i => random256[i]);
+    const size = chunks.reduce((s,c)=> s += c.length, 0);
+    return size;
+  }
+  export const getRandomData = (indices: number[])=> {
+    const chunks = indices.map(i => random256[i]);
+    const size = chunks.reduce((s,c)=> s += c.length, 0);
+    const data = new Uint8Array(size);
+    chunks.reduce((o,c)=> o += (data.set(c,o), c.length), 0);
+    return data;
+  };
+  
+  /*
+    Random Data Lengths :
+    {
+      256:  [244,234,303,202,305,293,234,260,
+             302,246,263,221,216,242,280,254],
+      512:  [478,505,505,598,527,539,562,506,548,484],
+      768:  [750,718,738,849,756,776],
+      1024: [1015,953,983],
+      1536: [1348,1639,1518,1842],
+      2-4k: {
+        2048: 1963,
+        2304: 2218,
+        2816: 2828,
+        3328: 3366,
+        3840: 3855
+      }
+    }
+  */
+  export const randomIndicies: {[id:string]: {[id:number]: number[]}} = {
+    /* fixed number of chunks (1/2/3/4) */
+    256: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(i=>[i]),
+    512: [[0,1],[2,3],[3,2],[4,5],[5,6],[6,4],[7,8],[7,9],[8,9],[10,11]],
+    768: [[9,0,7],[1,10,11],[12,13,14],[15,5,8],[13,15,7],[14,14,12]],
+    1024: [[1,5,9,13],[15,11,6,0],[12,3,8,10]],
+    /* variable number of chunks (5,2x6,7) */
+    1536: [[2,4,6,7,9],[0,1,2,5,8,10],[11,4,12,15,13,14],[9,8,7,6,5,4,3]],
+    /* long blocks (8,9,11,13,15) */
+    "2-4k": {
+      2048: [3,2,1,0,10,11,15,13],
+      2304: [12,14,14,13,12,15,10,11,9],
+      2816: [12,6,0,7,1,8,9,15,13,5,2],
+      3328: [14,4,6,5,11,9,3,4,10,15,2,0,12],
+      3840: [1,13,12,6,8,7,11,10, 2,5,15,3,9,4,14],
+    }
+  };
+  export const random256: number[][] =
+  ([[
+      "8f7c5c82a1f4c9802734af81eb50eb5a77c7c16bb45d6f73b4984925dd510e4e",
+      "0d151654d2b2810f5962e8557265d211983c9ec371bf222598d2d478cfed3923",
+      "59a4a716da50090dcedd7834bc7cc0c794042111f5bcfba004feca46d356d5bf",
+      "c2f368ad9e43a70799aa5359fabd5ebf0e3a26a243caaa4c00d4312edd536eea",
+      "4d6ace6dc6eda7ec50cd29bd1d38c2a9398779b62e021994cf90c9c1b9ef1678",
+      "1b1227cb48c027aceb3fee220777069e10bfcd101e5afdf97226c997c1e5ad22",
+      "5a3c38a84374e96e6307a002aaad4448be6f809076471cf676c5b701c0a18126",
+      "9ffb3402def175fbd44c9e2811ebbfac5a880095"
+    ],[
+      "366e3b9e59a9c3234d72d42db7ba96198ebfdf70ea6ed62b6ca57a25a5d153e7",
+      "1ca5b6bf34c1c7d8e164a0785beb11cd244813d81b314059d6353ed9980b2ac8",
+      "d096581405a81f4733d77198ffbaaa6e6e74263bdb5f026ad457b08a8446056b",
+      "98700da97890d3f685c4102ca40cb61cdfe50187bfc89a57432f9056075325b5",
+      "07b4bf30f7fa7b8de1a2ea54922b6499ced29bd82ff9f4ce344e86caeace1842",
+      "e6b79d13eef19888120139d354d0e6027043dc354695c06425884a8294ba26b0",
+      "f425496f74d5fd6346df9828062ae24935d47aa5daa7b45d7b811b90e5fe4b88",
+      "2106312d9770ec319825"
+    ],[
+      "bb313ae156246b1d3e8bf2c7797ebe2c5ab49faa7159bc5e0e65f64d94f7ff7d",
+      "a9d7b807a8f59f889fe2d681d200e825b610a18718de10377903f56aea39e9c1",
+      "487bda0daf42ea66a92334b03002fb9a4b8b3df62682ed81c1dc960527baff81",
+      "6769e6917a6353ee8b69afc6e53a4964c02cfa466e1d25cd3164494d23a957e3",
+      "2a94c2e95aa58d612e0881e8078acb987d33d23711701d9f826ad9b94c0df507",
+      "9585cae922cdfa176f2df7e0c55f1c5e799cb0fe7b53fe1d050c797852cb22a5",
+      "2c860febba7ac7c2bd3dd68b8fca42abbf6cb7b090c750b57aed57b0e7e3f56f",
+      "61ca188e996845b8e49cd79b668a1f3bcb9378a76dbbb581fb7e49f33f197d28",
+      "891a44168028b680e8bc8107ca9534dca9cf6e282e6478bddef78f68a44fbd7d",
+      "17979ef010b5da2feb0dc10905bbfe"
+    ],[
+      "0333bd86a915f798139c673003fe5cde0eccf1a279ece9909f1bcb2d0722df14",
+      "2beab507f5ae48da415ce6a536891415028e57449a1c1d4654cefa4561fddfa1",
+      "0081d2d55f3a322b513a74ad74352e0f542e8228c921ceea959c1bbdda1d2b9b",
+      "aae455a62d54c90fdb44af2ced044d1683f16be3391b9ddde80867fdcf885dcb",
+      "031ca47fa484d0964087bf065dc8125b84a6d80edbd0bc2199e198a236a92d3e",
+      "1f9393cb4cfcd1c6530853d4b84158a485493b42e52b00d81822cda3d179048e",
+      "b50d238fd025aa5a2ee4"
+    ],[
+      "6a56243b8f72c5c2c4377f202565a6850aaf2aa7dd5a28e6ad0e07fb09851e97",
+      "3b51e131e8ebd29df8befbcffe8e0b6344fbadc195783e7241a767370ae5368d",
+      "bdccea36a7d869476e171af8a384a6eace4fc3cbb44d4bed257b7c0fffd4ca45",
+      "c48b8caec650954d7144f63ef58ebf12caef5756dc3be759d19818522062114d",
+      "16cd8d61dcb837f0edfc3d511059e9509b1a8342f1ec3d36ca42b3dee24c7547",
+      "17b67c9f054fa220c5dd6befd9c4a559949351b196360adbe41f9a784f581bc8",
+      "693c30a3842717e8669fec30e8c9cd761b1898ba92ef6e5256b1455e76b80965",
+      "be8b716056404d2844ba59b07208df499013478173955fedf3ab2e08148240b3",
+      "c2254514d88239e38776221f2bcbf30e59e441ba8e5f64094f50b7eb59edb4a9",
+      "4b42574b51ac6fd589eebdd4bd4ff47ee2"
+    ],[
+      "ba909e03530b6257e298975ad0cb423d031bd2f482e70b0a1edc0b43982646d3",
+      "3f0af101f1e0257d6bb39fd6f0aba403c1d8ff4a0240c5d934ab48dec0e64d2a",
+      "9089673b3aa6eb4da1ff1c4c4ffa1f49656bafd44a5ce814f282f872d3802aab",
+      "b77934c207546c794561fb8a1e10e7419326c4689c14a326733088dc022f23c5",
+      "140c5546c90d1b59d6d3112a53fa46a3c35fac3b1a79bfafea8f6d5d8cb6322e",
+      "650601110709a322df3ec9781991e8bab823f25742f6e195b35055611142518b",
+      "bfcdaef5764bb5f9412b91ba727b64b31c6e05f1cde53b6aca73f05291fbf716",
+      "aeab2717f1e91ac6f6ec78fec70933b9056c0f0f630279beeb13922b4b98634c",
+      "de8f7ca4d3b507c158dafeb16adaa457c4dab9413a193891058159a0dbde3553",
+      "b8a3b2eac2"
+    ],[
+      "c526e1ef665f2b1e7600d8eac734d43a38efe173cac8b97b8989ef0b162c6807",
+      "b0da4d072e5a01d8caae75a5c72f17e6ef3bd58af482a0258877dc7c5ee9c762",
+      "6f7ee1f3917f32947de1922f363e8530aa5da5039a6a2006d86b5eea15a25b20",
+      "dff27e0baaf2a13351b5ebccc2333f54f7e1b2ccca8ceccfb758be47cec9ed86",
+      "2e73f93ba07baa1c0a36af3f5fab2639eb4309582f3b18fcf35e4cfc98922ebd",
+      "6ed955f6e4e2a74487258a227bf46acba3f4da90e6cfce4443b430763c3c195a",
+      "6927d08f9c1c87fce5a1d002f47d89c52e99e0a86f25cf3b7a1b6880ba5d9421",
+      "e0923a4ab6916bc96e8e"
+    ],[
+      "fac8b0d6881e8c92ece8502d8c69ea79f7eef7ad166434801984af022342c65d",
+      "28a7ebed786884eb3b9c0dcfdc7433b91a9e9a3404e6bbe9fd803cdb759b2cb5",
+      "1b96138021fce8feee26d099e803571acb94596a615874b9af57a0ac91597816",
+      "c0ffa5c8ba6a4fe2fc6fa1377a14a77d7ea2407e6e017ec02c93f50400cf4c68",
+      "ba6d4dd8dc72c8cbb84157ac4b82d790a600008cd0793e7a64297ee0768c8c51",
+      "342fa98decc12086dbafd7016595db2045ffa533b729ca962b31de974cb73713",
+      "dc5aa6e07e7559cd84ab314b335e68802c0106b5fc1757500c4979ece40b76af",
+      "644af3768bd6e7b727fce6d68ae3f33308cf4a79a4bea669ed0904d0acd9d544",
+      "42cae52b"
+    ],[
+      "e3f1f14dd7d9302139bbe22390ecbec5871898cb101e98a995cab9488abd9c81",
+      "fb1b4ea116d88d94a47bb205e3e2bbe88520acdd21cd47d3bbbb075008e7fa4f",
+      "2630732701572156829c44e452112a4d6fe8a7e5c4404d61ed525464abbce4ae",
+      "897b9bbab141921c674f5333dd6252e460a4d123b157a9f5a0d9bf444896b8af",
+      "1dcd53231b848df13ee6a7348751d2178c29964c133aeb4d0e9190621b899bb1",
+      "8c256fae024e00b64bae0419b5cca328b499538c3346fecaaee2b27213ff3938",
+      "5d24de36e72a1a940993540b686ffc26a78c13af9d67df39cb3aac0461aff838",
+      "70195db89f6bfca19214491936deac26dac1b7e87cddc7064ab4f23c79cb2ee8",
+      "8d7654aed629c8c2124dae1ea90a03a0b76502345ffa9f8b07eba44c65cca927",
+      "b2471452e47bc24ba91933f46f22"
+    ],[
+      "df18b88dc5ce49658d37c296739e92440b68a131f429f22699d9ac2f6a852770",
+      "d23f0f127f7458835d5a9a4d132d950aa7af733b714330ac205d91be2deb2807",
+      "b17ce9ae9798d3f8b7f961e932314d1c889e6ac888889b4f1ff6c0c94dcc187e",
+      "c13387ddfaab5cca56f62cc7e9a05292621ffeec8de6c378ae770ac2bcd01af7",
+      "8751df162164cdfdcc62abd4b416d2d8f582b21e887095c9d342d2e2625372e9",
+      "2f24b2a03dc9c34dc37c25a1a849ef66a1ea8550d7e8bb370d42f57c600c5650",
+      "044b923ddb162a1cd9b41aa7a8db157441af9174c9ead32538a62d8455d932a0",
+      "afc05b9c22ad5e60dffb3a1affc1fb2dd046c7fab137"
+    ],[
+      "2a75b00771ffb0096390ae5521952008fbb56a80fe74cf90c85d4b36e7a77e93",
+      "c233867f4b2ab0908aaabe1c6a631bcb6c714bed390eb22a44b4917f4ceadaa2",
+      "bc541ba58d854c638e6bc819eea8273b28b83f024be1b5e651a1130c4d186a3b",
+      "2f6a773cb6f2e7db09c2ecaa79047bff59a60c296cf6a346bdd852a81f35f499",
+      "82e3259ee4bbdf377718a61e30e754ae9725d18cbeaaca9dfff166816a5e3a3f",
+      "7758cb04d152a249efd17f0fb0b9d64074c011b4dab71da10d381aa3818d37d8",
+      "5aabad31204fe3be7c7ef792684c8e999cc4b076e9f7d83e2bd3e5096f180895",
+      "74d4153e20e9b52822625bbe6940425acbaca87adbff62e68a1ff7a166abcf47",
+      "ab953937b701cd"
+    ],[
+      "2d26095ddec3de842c89561571ef29cb010786e203e196e83355c00eaccc5011",
+      "091b97058fda754caafc6b5b970e75780ede3474477bb7625afcb083c9577922",
+      "5c15c5aebdf499c61644c4f2d1c9ec06a0878c3ae1c90c4d9189b4b7fc9d0c03",
+      "e2003a488d1c435689912d5f14465c5e9ad226e695d63412d872f2b6c1ec5f51",
+      "b45c2c0f0379d8898f41acdf57ce6f4dd9d1187565bf0374e844431c444d8b69",
+      "1940251f6af4ffae919f173d4b56d28992a0a1392bcc4f88b2dd7564784977f5",
+      "bd981a76723b2d1578c911d05cff2cb805feb42ee9e2d2934ab63d2096"
+    ],[
+      "a3b0d8e929ee41777040aff638e5a9eb6ae5f2fe91ce9c7ad41a14ece6b0efb6",
+      "4eb7eeedc4f58a1765ef18762a8c6c460907859e68741f0a496e121941c47e2e",
+      "9ea800d8444d529bdcf734185792bbf28b7fb4addfec6b1d2a5867f26d293915",
+      "6c70c60ae6f684cd2ea3448e72ac9d0355e59f0c3faa1e22a24b2557b85e75e2",
+      "db830d9edab5bd0d47e32cdcd6d005bcde6eaf1e863b31065b60253c12b8c9a0",
+      "881db467f4c18125b14ccfc51ef378fb73b9a1a383684f347b17228a544dc009",
+      "481ac86453b5f065984436c74c9c5ecc4bdc52556e431c15"
+    ],[
+      "602aefe40e33126473a035fbaaf7e4cea093f59d2b9cdbbee94d82949d9748f9",
+      "0702cda92d5902c78262a41ddcf2ab43df352c9afb1a7ba595892fb8b2a81a2d",
+      "d6a4a9f4469121e7ad90744647a57dd2a097a3241f03caf37e4af956f66d7379",
+      "7bc3bb6101ccf4831ae28f9cda84c379be6e043d86d869851f7894d5786ec6fb",
+      "6ce9fcd6a1e946586c5f9783139af47334d04046264549b13b321966b3333ad5",
+      "6130c9e9855ac9053e98a75a754abf1dc366a8715f072aee4d9d06f10ae2d2b0",
+      "60aee793f28c5f6da0698fcf7fb4230610e8ecc3f79656d0dade694a9d237fb2",
+      "3f96110b0bcbad26ced1e5e406770f8c3987"
+    ],[
+      "b746b96b90c31b8f81bcc3bcc415065aae72502b3eb39fd82c5ace30019baa46",
+      "c39b2bbb7e5361a5eb00cb89632a54fee2850e5576fffa09ef97e028c50db4d7",
+      "1552088e465f14f3cb6e9421972035c19e965b886d988c27f086091557034b38",
+      "c0b076f38db66d4de6cc032ffe203d939fa56cc8e55537c7f8550cd18d9f5da0",
+      "14157c15a0efd8235d2489192ca1cfbb49ffc467fd7e0d4e050fec24644d1789",
+      "3b7a3bbd2219796fc06d890a6dda028f2866c7093737729f4a84bbb0e0e8612d",
+      "b0703853109206095d37949d82d59f5381f567f4d909915ea237eb2536c9ec37",
+      "42444c00252fc10e2e4a753d576ac2dbc0f23db078a6b65405702d53f8b2f241",
+      "32716acbafb5a2efd4a0805badafee42a71a70f4e0054e06"
+    ],[
+      "ef43e541f5e514073674fef9dcc8e46ecc1350809a5945d9640511ba0d091831",
+      "63b8e6c4334535a38dbabe5e7b9e2e34c7727bb286f7c8682292a0023adbe292",
+      "c266efc7b42d2576f638fcd5c9dd70007b5a7da86eed4ed2c59c1693f769fca8",
+      "4f9b866553254868b1eba3c699583df6d0617f8f60b08569beafc4d575a3ee6c",
+      "687895b94a228c13ee97914aaa8ee35e66a848e8342e7961aba8564f8828445c",
+      "681639ace78d0cdc6b1ffddc5a24b73fe7a39b5c70aaa2c9df9822a51ebedb08",
+      "83f45e25807c574ae971a11e4d1cb23419cde23b39064c12a218c703fb801ca3",
+      "1397c670338a27a92886a067562fc9bbc82f420ee5489214bb72d28252ee"
+    ]
+  ]).map(a=>a.join('').match(/../g)?.map(x=>parseInt(x,16))||[]);
