@@ -1,7 +1,7 @@
 {
 	"name": "@browserfs/fs-dom",
-	"version": "0.0.6",
-	"description": "DOM backends for BrowserFS",
+	"version": "0.0.7-iontach",
+	"description": "DOM backends for @BrowserFS",
 	"main": "dist/index.js",
 	"types": "dist",
 	"keywords": [
@@ -10,15 +10,26 @@
 		"storage"
 	],
 	"type": "module",
-	"homepage": "https://github.com/browser-fs/fs-dom",
-	"author": "dr-vortex <jp@drvortex.dev>",
+	"homepage": "https://github.com/saoirse-iontach/browser-fs-dom",
+	"author": "John Vilk <jvilk@cs.umass.edu>",
+	"contributors": [
+		{
+			"name": "dr-vortex",
+			"email": "jp@drvortex.dev",
+			"url": "https://drvortex.dev"
+		},
+		{
+			"name": "saoirse-iontach",
+			"url": "https://github.com/saoirse-iontach"
+		}
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/browser-fs/fs-dom.git"
+		"url": "git+https://github.com/saoirse-iontach/browser-fs-dom.git"
 	},
 	"bugs": {
-		"url": "https://github.com/browser-fs/fs-dom/issues"
+		"url": "https://github.com/saoirse-iontach/browser-fs-dom/issues"
 	},
 	"engines": {
 		"node": ">= 18"
@@ -39,19 +50,24 @@
 		"lint": "eslint src",
 		"build": "node scripts/build.mjs",
 		"build:docs": "typedoc --out docs --name 'BrowserFS DOM' src/index.ts",
+		"test": "cross-env NODE_ENV=--experimental-vm-modules npx jest",
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
+		"@types/jest": "^29.5.12",
 		"@typescript-eslint/eslint-plugin": "^5.55.0",
 		"@typescript-eslint/parser": "^5.55.0",
 		"esbuild-plugin-external-global": "^1.0.1",
+		"cross-env": "^7.0.3",
 		"esbuild": "^0.17.18",
 		"eslint": "^8.36.0",
+		"jest": "^29.7.0",
 		"prettier": "^2.8.7",
+		"ts-jest": "^29.1.2",
 		"typedoc": "^0.25.1",
-		"typescript": "5.2.2"
+		"typescript": "^5.2.2"
 	},
 	"dependencies": {
-		"@browserfs/core": "^0.1.0"
+		"@browserfs/core": "saoirse-iontach/browser-fs-core#semver:~0.1.1"
 	}
 }
