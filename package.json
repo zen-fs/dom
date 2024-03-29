@@ -1,7 +1,7 @@
 {
 	"name": "@browserfs/fs-dom",
-	"version": "0.0.6",
-	"description": "DOM backends for BrowserFS",
+	"version": "0.0.7-iontach",
+	"description": "DOM backends for @BrowserFS",
 	"main": "dist/index.js",
 	"types": "dist",
 	"keywords": [
@@ -10,15 +10,26 @@
 		"storage"
 	],
 	"type": "module",
-	"homepage": "https://github.com/browser-fs/fs-dom",
-	"author": "dr-vortex <jp@drvortex.dev>",
+	"homepage": "https://github.com/saoirse-iontach/browser-fs-dom",
+	"author": "John Vilk <jvilk@cs.umass.edu>",
+	"contributors": [
+		{
+			"name": "dr-vortex",
+			"email": "jp@drvortex.dev",
+			"url": "https://drvortex.dev"
+		},
+		{
+			"name": "saoirse-iontach",
+			"url": "https://github.com/saoirse-iontach"
+		}
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/browser-fs/fs-dom.git"
+		"url": "git+https://github.com/saoirse-iontach/browser-fs-dom.git"
 	},
 	"bugs": {
-		"url": "https://github.com/browser-fs/fs-dom/issues"
+		"url": "https://github.com/saoirse-iontach/browser-fs-dom/issues"
 	},
 	"engines": {
 		"node": ">= 18"
@@ -51,6 +62,6 @@
 		"typescript": "5.2.2"
 	},
 	"dependencies": {
-		"@browserfs/core": "^0.1.0"
+		"@browserfs/core": "saoirse-iontach/browser-fs-core#semver:~0.1.1"
 	}
 }
