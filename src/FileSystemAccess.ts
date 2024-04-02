@@ -1,6 +1,6 @@
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
 import { ApiError, ErrorCode } from '@zenfs/core/ApiError.js';
-import { FileFlag, PreloadFile } from '@zenfs/core/file.js';
+import { PreloadFile } from '@zenfs/core/file.js';
 import { FileSystem, Async, type FileSystemMetadata } from '@zenfs/core/filesystem.js';
 import { Stats, FileType } from '@zenfs/core/stats.js';
 import type { Backend } from '@zenfs/core/backends/backend.js';
@@ -27,7 +27,7 @@ const handleError = (path = '', error: Error) => {
 };
 
 export class FileSystemAccessFile extends PreloadFile<FileSystemAccessFS> {
-	constructor(_fs: FileSystemAccessFS, _path: string, _flag: FileFlag, _stat: Stats, contents?: Uint8Array) {
+	constructor(_fs: FileSystemAccessFS, _path: string, _flag: string, _stat: Stats, contents?: Uint8Array) {
 		super(_fs, _path, _flag, _stat, contents);
 	}
 
@@ -125,7 +125,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 		await writable.close();
 	}
 
-	public async createFile(path: string, flag: FileFlag): Promise<FileSystemAccessFile> {
+	public async createFile(path: string, flag: string): Promise<FileSystemAccessFile> {
 		await this.writeFile(path, new Uint8Array());
 		return this.openFile(path, flag);
 	}
@@ -144,7 +144,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 		}
 	}
 
-	public async openFile(path: string, flag: FileFlag): Promise<FileSystemAccessFile> {
+	public async openFile(path: string, flag: string): Promise<FileSystemAccessFile> {
 		const handle = await this.getHandle(path);
 		if (handle instanceof FileSystemFileHandle) {
 			const file = await handle.getFile();
