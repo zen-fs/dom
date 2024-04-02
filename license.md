@@ -1,3 +1,5 @@
+Copyright (c) 2023-2024 James P. and other ZenFS contributors.
+
 Copyright (c) 2013-2023 John Vilk and other ZenFS contributors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
