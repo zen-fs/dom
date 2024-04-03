@@ -1,4 +1,4 @@
-import { SyncStore, SimpleSyncStore, SimpleSyncRWTransaction, SyncRWTransaction, SyncStoreFS } from '@zenfs/core/backends/SyncStore.js';
+import { SyncStore, SimpleSyncStore, SimpleSyncTransaction, SyncStoreFS } from '@zenfs/core/backends/SyncStore.js';
 import { ApiError, ErrorCode } from '@zenfs/core/ApiError.js';
 import { type Backend } from '@zenfs/core/backends/backend.js';
 import { decode, encode } from '@zenfs/core/utils.js';
@@ -18,9 +18,9 @@ export class StorageStore implements SyncStore, SimpleSyncStore {
 		this._storage.clear();
 	}
 
-	public beginTransaction(): SyncRWTransaction {
+	public beginTransaction(): SimpleSyncTransaction {
 		// No need to differentiate.
-		return new SimpleSyncRWTransaction(this);
+		return new SimpleSyncTransaction(this);
 	}
 
 	public get(key: Ino): Uint8Array | undefined {

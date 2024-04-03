@@ -1,4 +1,4 @@
-import { AsyncROTransaction, AsyncRWTransaction, AsyncStore, AsyncStoreFS } from '@zenfs/core/backends/AsyncStore.js';
+import { AsyncTransaction, AsyncStore, AsyncStoreFS } from '@zenfs/core/backends/AsyncStore.js';
 import { ApiError, ErrorCode } from '@zenfs/core/ApiError.js';
 import type { Backend } from '@zenfs/core/backends/backend.js';
 import type { Ino } from '@zenfs/core/inode.js';
@@ -20,84 +20,55 @@ function convertError(e: { name: string }, message: string = e.toString()): ApiE
 	}
 }
 
-/**
- * @hidden
- */
-export class IndexedDBROTransaction implements AsyncROTransaction {
-	constructor(
-		public tx: IDBTransaction,
-		public store: IDBObjectStore
-	) {}
-
-	public get(key: Ino): Promise<Uint8Array> {
-		return new Promise((resolve, reject) => {
-			try {
-				const req: IDBRequest = this.store.get(key.toString());
-				req.onerror = e => {
-					e.preventDefault();
-					reject(new ApiError(ErrorCode.EIO));
-				};
-				req.onsuccess = () => {
-					// IDB returns the value 'undefined' when you try to get keys that
-					// don't exist. The caller expects this behavior.
-					const result = req.result;
-					if (result === undefined) {
-						resolve(result);
-					} else {
-						// IDB data is stored as an ArrayUint8Array
-						resolve(Uint8Array.from(result));
-					}
-				};
-			} catch (e) {
-				reject(convertError(e));
-			}
-		});
-	}
+function wrap<T>(request: IDBRequest<T>): Promise<T> {
+	return new Promise((resolve, reject) => {
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = e => {
+			e.preventDefault();
+			reject(new ApiError(ErrorCode.EIO));
+		};
+	});
 }
 
 /**
  * @hidden
  */
-export class IndexedDBRWTransaction extends IndexedDBROTransaction implements AsyncRWTransaction, AsyncROTransaction {
-	constructor(tx: IDBTransaction, store: IDBObjectStore) {
-		super(tx, store);
+export class IndexedDBTransaction implements AsyncTransaction {
+	constructor(
+		public tx: IDBTransaction,
+		public store: IDBObjectStore
+	) {}
+
+	public async get(key: Ino): Promise<Uint8Array> {
+		try {
+			return await wrap<Uint8Array>(this.store.get(key.toString()));
+		} catch (e) {
+			throw convertError(e);
+		}
 	}
 
 	/**
 	 * @todo return false when add has a key conflict (no error)
 	 */
-	public put(key: Ino, data: Uint8Array, overwrite: boolean): Promise<boolean> {
-		return new Promise((resolve, reject) => {
-			try {
-				const req: IDBRequest = overwrite ? this.store.put(data, key.toString()) : this.store.add(data, key.toString());
-				req.onerror = e => {
-					e.preventDefault();
-					reject(new ApiError(ErrorCode.EIO));
-				};
-				req.onsuccess = () => resolve(true);
-			} catch (e) {
-				reject(convertError(e));
-			}
-		});
+	public async put(key: Ino, data: Uint8Array, overwrite: boolean): Promise<boolean> {
+		try {
+			await wrap(overwrite ? this.store.put(data, key.toString()) : this.store.add(data, key.toString()));
+			return true;
+		} catch (e) {
+			throw convertError(e);
+		}
 	}
 
-	public remove(key: Ino): Promise<void> {
-		return new Promise((resolve, reject) => {
-			try {
-				const req: IDBRequest = this.store.delete(key.toString());
-				req.onerror = e => {
-					e.preventDefault();
-					reject(new ApiError(ErrorCode.EIO));
-				};
-				req.onsuccess = () => resolve;
-			} catch (e) {
-				reject(convertError(e));
-			}
-		});
+	public async remove(key: Ino): Promise<void> {
+		try {
+			await wrap(this.store.delete(key.toString()));
+		} catch (e) {
+			throw convertError(e);
+		}
 	}
 
-	public commit(): Promise<void> {
-		return new Promise(resolve => setTimeout(resolve, 0));
+	public async commit(): Promise<void> {
+		return;
 	}
 
 	public async abort(): Promise<void> {
@@ -145,7 +116,7 @@ export class IndexedDBStore implements AsyncStore {
 		return new Promise((resolve, reject) => {
 			try {
 				const req: IDBRequest = this.db.transaction(this.storeName, 'readwrite').objectStore(this.storeName).clear();
-				req.onsuccess = () => setTimeout(resolve, 0);
+				req.onsuccess = () => resolve();
 				req.onerror = e => {
 					e.preventDefault();
 					reject(new ApiError(ErrorCode.EIO));
@@ -156,20 +127,10 @@ export class IndexedDBStore implements AsyncStore {
 		});
 	}
 
-	public beginTransaction(type: 'readonly'): AsyncROTransaction;
-	public beginTransaction(type: 'readwrite'): AsyncRWTransaction;
-	public beginTransaction(type: 'readonly' | 'readwrite' = 'readonly'): AsyncROTransaction {
-		const tx = this.db.transaction(this.storeName, type),
+	public beginTransaction(): IndexedDBTransaction {
+		const tx = this.db.transaction(this.storeName, 'readwrite'),
 			objectStore = tx.objectStore(this.storeName);
-		if (type === 'readwrite') {
-			return new IndexedDBRWTransaction(tx, objectStore);
-		}
-
-		if (type === 'readonly') {
-			return new IndexedDBROTransaction(tx, objectStore);
-		}
-
-		throw new ApiError(ErrorCode.EINVAL, 'Invalid transaction type.');
+		return new IndexedDBTransaction(tx, objectStore);
 	}
 }
 
