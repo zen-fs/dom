@@ -18,9 +18,9 @@ export interface FileSystemAccessOptions {
 	handle: FileSystemDirectoryHandle;
 }
 
-const handleError = (path = '', error: Error) => {
+const handleError = (path = '', syscall: string, error: Error) => {
 	if (error.name === 'NotFoundError') {
-		throw ApiError.ENOENT(path);
+		throw ApiError.With('ENOENT', path, syscall);
 	}
 
 	throw error as ApiError;
@@ -109,7 +109,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 			writable.close();
 			await this.unlink(oldPath);
 		} catch (err) {
-			handleError(oldPath, err);
+			handleError(oldPath, 'rename', err);
 		}
 	}
 
@@ -133,7 +133,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 	public async stat(path: string): Promise<Stats> {
 		const handle = await this.getHandle(path);
 		if (!handle) {
-			throw ApiError.OnPath(ErrorCode.ENOENT, path);
+			throw ApiError.With('ENOENT', path, 'stat');
 		}
 		if (handle instanceof FileSystemDirectoryHandle) {
 			return new Stats({ mode: 0o777 | FileType.DIRECTORY, size: 4096 });
@@ -160,7 +160,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 			try {
 				await handle.removeEntry(basename(path), { recursive: true });
 			} catch (e) {
-				handleError(path, e);
+				handleError(path, 'unlink', e);
 			}
 		}
 	}
@@ -176,7 +176,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 	public async mkdir(path: string): Promise<void> {
 		const existingHandle = await this.getHandle(path);
 		if (existingHandle) {
-			throw ApiError.EEXIST(path);
+			throw ApiError.With('EEXIST', path, 'mkdir');
 		}
 
 		const handle = await this.getHandle(dirname(path));
@@ -188,7 +188,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 	public async readdir(path: string): Promise<string[]> {
 		const handle = await this.getHandle(path);
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
-			throw ApiError.ENOTDIR(path);
+			throw ApiError.With('ENOTDIR', path, 'readdir');
 		}
 		const _keys: string[] = [];
 		for await (const key of handle.keys()) {
@@ -225,12 +225,12 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 					try {
 						return continueWalk(await handle.getFileHandle(pathPart));
 					} catch (err) {
-						handleError(walkingPath, err);
+						handleError(walkingPath, 'getHandle', err);
 					}
 				} else if (error.message === 'Name is not allowed.') {
 					throw new ApiError(ErrorCode.ENOENT, error.message, walkingPath);
 				} else {
-					handleError(walkingPath, error);
+					handleError(walkingPath, 'getHandle', error);
 				}
 			}
 		};
