@@ -38,11 +38,12 @@
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "tsc -p tsconfig.json --noEmit && eslint src",
-		"build": "node scripts/build.mjs",
+		"build": "npx build --package=@zenfs/core --globalName ZenFS_DOM --entry src/index.ts",
 		"build:docs": "typedoc --out docs --name 'ZenFS DOM' src/index.ts",
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
+		"@fal-works/esbuild-plugin-global-externals": "^2.1.2",
 		"@typescript-eslint/eslint-plugin": "^5.55.0",
 		"@typescript-eslint/parser": "^5.55.0",
 		"esbuild": "^0.17.18",
@@ -52,6 +53,6 @@
 		"typescript": "5.2.2"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^0.5.5"
+		"@zenfs/core": "^0.5.10"
 	}
 }

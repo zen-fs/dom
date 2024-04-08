@@ -1,8 +1,5 @@
-import { SyncStore, SimpleSyncStore, SimpleSyncTransaction, SyncStoreFS } from '@zenfs/core/backends/SyncStore.js';
-import { ApiError, ErrorCode } from '@zenfs/core/ApiError.js';
-import { type Backend } from '@zenfs/core/backends/backend.js';
-import { decode, encode } from '@zenfs/core/utils.js';
-import type { Ino } from '@zenfs/core/inode.js';
+import type { Backend, Ino } from '@zenfs/core';
+import { SyncStore, SimpleSyncStore, SimpleSyncTransaction, SyncStoreFS, ApiError, ErrorCode, encode, decode } from '@zenfs/core';
 
 /**
  * A synchronous key-value store backed by Storage.

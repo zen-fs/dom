@@ -1,9 +1,6 @@
+import type { Backend, FileSystemMetadata } from '@zenfs/core';
+import { ApiError, Async, ErrorCode, FileSystem, FileType, PreloadFile, Stats } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
-import { ApiError, ErrorCode } from '@zenfs/core/ApiError.js';
-import { PreloadFile } from '@zenfs/core/file.js';
-import { FileSystem, Async, type FileSystemMetadata } from '@zenfs/core/filesystem.js';
-import { Stats, FileType } from '@zenfs/core/stats.js';
-import type { Backend } from '@zenfs/core/backends/backend.js';
 
 declare global {
 	interface FileSystemDirectoryHandle {

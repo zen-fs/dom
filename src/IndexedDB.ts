@@ -1,7 +1,5 @@
-import { AsyncTransaction, AsyncStore, AsyncStoreFS } from '@zenfs/core/backends/AsyncStore.js';
-import { ApiError, ErrorCode } from '@zenfs/core/ApiError.js';
-import type { Backend } from '@zenfs/core/backends/backend.js';
-import type { Ino } from '@zenfs/core/inode.js';
+import type { Backend, Ino } from '@zenfs/core';
+import { AsyncTransaction, AsyncStore, AsyncStoreFS, ApiError, ErrorCode } from '@zenfs/core';
 
 /**
  * Converts a DOMException or a DOMError from an IndexedDB event into a
