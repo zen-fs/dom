@@ -64,7 +64,7 @@ export interface StorageOptions {
 /**
  * A synchronous file system backed by a `Storage` (e.g. localStorage).
  */
-export const Storage: Backend = {
+export const Storage: Backend<SyncStoreFS> = {
 	name: 'Storage',
 
 	options: {

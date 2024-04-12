@@ -236,7 +236,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 	}
 }
 
-export const FileSystemAccess: Backend = {
+export const FileSystemAccess: Backend<FileSystemAccessFS> = {
 	name: 'FileSystemAccess',
 
 	options: {

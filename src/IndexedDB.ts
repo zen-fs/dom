@@ -156,7 +156,7 @@ export interface IndexedDBOptions {
  * A file system that uses the IndexedDB key value file system.
  */
 
-export const IndexedDB: Backend = {
+export const IndexedDB: Backend<AsyncStoreFS> = {
 	name: 'IndexedDB',
 
 	options: {
