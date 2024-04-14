@@ -53,6 +53,6 @@
 		"typescript": "5.2.2"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^0.5.10"
+		"@zenfs/core": "^0.7.0"
 	}
 }

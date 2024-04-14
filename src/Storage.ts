@@ -4,9 +4,9 @@ import { SyncStore, SimpleSyncStore, SimpleSyncTransaction, SyncStoreFS, ApiErro
 /**
  * A synchronous key-value store backed by Storage.
  */
-export class StorageStore implements SyncStore, SimpleSyncStore {
+export class WebStorageStore implements SyncStore, SimpleSyncStore {
 	public get name(): string {
-		return Storage.name;
+		return WebStorage.name;
 	}
 
 	constructor(protected _storage: Storage) {}
@@ -54,18 +54,18 @@ export class StorageStore implements SyncStore, SimpleSyncStore {
 /**
  * Options to pass to the StorageFileSystem
  */
-export interface StorageOptions {
+export interface WebStorageOptions {
 	/**
 	 * The Storage to use. Defaults to globalThis.localStorage.
 	 */
-	storage: Storage;
+	storage?: Storage;
 }
 
 /**
  * A synchronous file system backed by a `Storage` (e.g. localStorage).
  */
-export const Storage: Backend<SyncStoreFS> = {
-	name: 'Storage',
+export const WebStorage = {
+	name: 'WebStorage',
 
 	options: {
 		storage: {
@@ -79,7 +79,7 @@ export const Storage: Backend<SyncStoreFS> = {
 		return storage instanceof globalThis.Storage;
 	},
 
-	create({ storage = globalThis.localStorage }: StorageOptions) {
-		return new SyncStoreFS({ store: new StorageStore(storage) });
+	create({ storage = globalThis.localStorage }: WebStorageOptions) {
+		return new SyncStoreFS({ store: new WebStorageStore(storage) });
 	},
-};
+} as const satisfies Backend;

@@ -1,5 +1,5 @@
 import type { Backend, FileSystemMetadata } from '@zenfs/core';
-import { ApiError, Async, ErrorCode, FileSystem, FileType, PreloadFile, Stats } from '@zenfs/core';
+import { ApiError, Async, ErrorCode, FileSystem, FileType, InMemory, PreloadFile, Stats } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
 
 declare global {
@@ -11,7 +11,7 @@ declare global {
 	}
 }
 
-export interface FileSystemAccessOptions {
+export interface WebAccessOptions {
 	handle: FileSystemDirectoryHandle;
 }
 
@@ -23,47 +23,28 @@ const handleError = (path = '', syscall: string, error: Error) => {
 	throw error as ApiError;
 };
 
-export class FileSystemAccessFile extends PreloadFile<FileSystemAccessFS> {
-	constructor(_fs: FileSystemAccessFS, _path: string, _flag: string, _stat: Stats, contents?: Uint8Array) {
-		super(_fs, _path, _flag, _stat, contents);
-	}
-
-	public syncSync(): void {
-		throw new ApiError(ErrorCode.ENOTSUP);
-	}
-
-	public async sync(): Promise<void> {
-		if (this.isDirty()) {
-			await this.fs.sync(this.path, this.buffer, this.stats);
-			this.resetDirty();
-		}
-	}
-
-	public async close(): Promise<void> {
-		await this.sync();
-	}
-
-	public closeSync(): void {
-		throw new ApiError(ErrorCode.ENOTSUP);
-	}
-}
-
-export class FileSystemAccessFS extends Async(FileSystem) {
+export class WebAccessFS extends Async(FileSystem) {
 	private _handles: Map<string, FileSystemHandle> = new Map();
+
+	/**
+	 * @hidden
+	 */
+	_sync: FileSystem;
 
 	public async ready(): Promise<this> {
 		return this;
 	}
 
-	public constructor({ handle }: FileSystemAccessOptions) {
+	public constructor({ handle }: WebAccessOptions) {
 		super();
 		this._handles.set('/', handle);
+		this._sync = InMemory.create({ name: 'accessfs-cache' });
 	}
 
 	public metadata(): FileSystemMetadata {
 		return {
 			...super.metadata(),
-			name: 'FileSystemAccess',
+			name: 'WebAccess',
 		};
 	}
 
@@ -122,7 +103,7 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 		await writable.close();
 	}
 
-	public async createFile(path: string, flag: string): Promise<FileSystemAccessFile> {
+	public async createFile(path: string, flag: string): Promise<PreloadFile<this>> {
 		await this.writeFile(path, new Uint8Array());
 		return this.openFile(path, flag);
 	}
@@ -141,13 +122,13 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 		}
 	}
 
-	public async openFile(path: string, flag: string): Promise<FileSystemAccessFile> {
+	public async openFile(path: string, flag: string): Promise<PreloadFile<this>> {
 		const handle = await this.getHandle(path);
 		if (handle instanceof FileSystemFileHandle) {
 			const file = await handle.getFile();
 			const data = new Uint8Array(await file.arrayBuffer());
 			const stats = new Stats({ mode: 0o777 | FileType.FILE, size: file.size, mtimeMs: file.lastModified });
-			return new FileSystemAccessFile(this, path, flag, stats, data);
+			return new PreloadFile(this, path, flag, stats, data);
 		}
 	}
 
@@ -236,8 +217,8 @@ export class FileSystemAccessFS extends Async(FileSystem) {
 	}
 }
 
-export const FileSystemAccess: Backend<FileSystemAccessFS> = {
-	name: 'FileSystemAccess',
+export const WebAccess = {
+	name: 'WebAccess',
 
 	options: {
 		handle: {
@@ -251,7 +232,7 @@ export const FileSystemAccess: Backend<FileSystemAccessFS> = {
 		return typeof FileSystemHandle == 'function';
 	},
 
-	create(options: FileSystemAccessOptions) {
-		return new FileSystemAccessFS(options);
+	create(options: WebAccessOptions) {
+		return new WebAccessFS(options);
 	},
-};
+} as const satisfies Backend;

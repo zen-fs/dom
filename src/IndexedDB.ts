@@ -1,4 +1,4 @@
-import type { Backend, Ino } from '@zenfs/core';
+import type { AsyncStoreOptions, Backend, Ino } from '@zenfs/core';
 import { AsyncTransaction, AsyncStore, AsyncStoreFS, ApiError, ErrorCode } from '@zenfs/core';
 
 /**
@@ -79,26 +79,20 @@ export class IndexedDBTransaction implements AsyncTransaction {
 }
 
 export class IndexedDBStore implements AsyncStore {
-	public static create(storeName: string, indexedDB: IDBFactory): Promise<IndexedDBStore> {
-		return new Promise((resolve, reject) => {
-			const req: IDBOpenDBRequest = indexedDB.open(storeName, 1);
+	public static async create(storeName: string, indexedDB: IDBFactory): Promise<IndexedDBStore> {
+		const req: IDBOpenDBRequest = indexedDB.open(storeName, 1);
 
-			req.onupgradeneeded = () => {
-				const db: IDBDatabase = req.result;
-				// This should never happen; we're at version 1. Why does another database exist?
-				if (db.objectStoreNames.contains(storeName)) {
-					db.deleteObjectStore(storeName);
-				}
-				db.createObjectStore(storeName);
-			};
+		req.onupgradeneeded = () => {
+			const db: IDBDatabase = req.result;
+			// This should never happen; we're at version 1. Why does another database exist?
+			if (db.objectStoreNames.contains(storeName)) {
+				db.deleteObjectStore(storeName);
+			}
+			db.createObjectStore(storeName);
+		};
 
-			req.onsuccess = () => resolve(new IndexedDBStore(req.result, storeName));
-
-			req.onerror = e => {
-				e.preventDefault();
-				reject(new ApiError(ErrorCode.EACCES));
-			};
-		});
+		const result = await wrap(req);
+		return new IndexedDBStore(result, storeName);
 	}
 
 	constructor(
@@ -135,16 +129,11 @@ export class IndexedDBStore implements AsyncStore {
 /**
  * Configuration options for the IndexedDB file system.
  */
-export interface IndexedDBOptions {
+export interface IndexedDBOptions extends Omit<AsyncStoreOptions, 'store'> {
 	/**
 	 * The name of this file system. You can have multiple IndexedDB file systems operating at once, but each must have a different name.
 	 */
 	storeName?: string;
-
-	/**
-	 * The size of the inode cache. Defaults to 100. A size of 0 or below disables caching.
-	 */
-	cacheSize?: number;
 
 	/**
 	 * The IDBFactory to use. Defaults to `globalThis.indexedDB`.
@@ -156,7 +145,7 @@ export interface IndexedDBOptions {
  * A file system that uses the IndexedDB key value file system.
  */
 
-export const IndexedDB: Backend<AsyncStoreFS> = {
+export const IndexedDB = {
 	name: 'IndexedDB',
 
 	options: {
@@ -177,25 +166,24 @@ export const IndexedDB: Backend<AsyncStoreFS> = {
 		},
 	},
 
-	isAvailable(idbFactory: IDBFactory = globalThis.indexedDB): boolean {
+	async isAvailable(idbFactory: IDBFactory = globalThis.indexedDB): Promise<boolean> {
 		try {
 			if (!(idbFactory instanceof IDBFactory)) {
 				return false;
 			}
 			const req = idbFactory.open('__zenfs_test');
-			if (!req) {
-				return false;
-			}
-			req.onsuccess = () => idbFactory.deleteDatabase('__zenfs_test');
+			await wrap(req);
+			idbFactory.deleteDatabase('__zenfs_test');
+			return true;
 		} catch (e) {
+			idbFactory.deleteDatabase('__zenfs_test');
 			return false;
 		}
-		return true;
 	},
 
-	create({ cacheSize = 100, storeName = 'zenfs', idbFactory = globalThis.indexedDB }: IndexedDBOptions) {
+	create({ lruCacheSize = 100, storeName = 'zenfs', idbFactory = globalThis.indexedDB }: IndexedDBOptions) {
 		const store = IndexedDBStore.create(storeName, idbFactory);
-		const fs = new AsyncStoreFS({ cacheSize, store });
+		const fs = new AsyncStoreFS({ lruCacheSize, store });
 		return fs;
 	},
-};
+} as const satisfies Backend;
