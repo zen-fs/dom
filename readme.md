@@ -7,9 +7,9 @@
 
 ## Backends
 
--   `Storage`: Stores files in a `Storage` object, like `localStorage` and `sessionStorage`.
+-   `WebStorage`: Stores files in a `Storage` object, like `localStorage` and `sessionStorage`.
 -   `IndexedDB`: Stores files into an `IndexedDB` object database.
--   `FileSystemAccess`: Store files using the [Web File System API](https://developer.mozilla.org/Web/API/File_System_API).
+-   `WebAccess`: Store files using the [Web File System API](https://developer.mozilla.org/Web/API/File_System_API).
 
 For more information, see the [API documentation](https://zen-fs.github.io/dom).
 
@@ -20,9 +20,9 @@ For more information, see the [API documentation](https://zen-fs.github.io/dom).
 
 ```js
 import { configure, fs } from '@zenfs/core';
-import { Storage } from '@zenfs/dom';
+import { WebStorage } from '@zenfs/dom';
 
-await configure({ backend: Storage, storage: localStorage });
+await configure({ backend: WebStorage, storage: localStorage });
 
 if (!fs.existsSync('/test.txt')) {
 	fs.writeFileSync('/test.txt', 'This will persist across reloads!');
