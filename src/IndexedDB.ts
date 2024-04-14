@@ -181,9 +181,9 @@ export const IndexedDB = {
 		}
 	},
 
-	create({ lruCacheSize = 100, storeName = 'zenfs', idbFactory = globalThis.indexedDB }: IndexedDBOptions) {
-		const store = IndexedDBStore.create(storeName, idbFactory);
-		const fs = new AsyncStoreFS({ lruCacheSize, store });
+	create(options: IndexedDBOptions) {
+		const store = IndexedDBStore.create(options.storeName || 'zenfs', options.idbFactory);
+		const fs = new AsyncStoreFS({ ...options, store });
 		return fs;
 	},
 } as const satisfies Backend;
