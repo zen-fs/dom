@@ -79,7 +79,7 @@ export class IndexedDBTransaction implements AsyncTransaction {
 }
 
 export class IndexedDBStore implements AsyncStore {
-	public static async create(storeName: string, indexedDB: IDBFactory): Promise<IndexedDBStore> {
+	public static async create(storeName: string, indexedDB: IDBFactory = globalThis.indexedDB): Promise<IndexedDBStore> {
 		const req: IDBOpenDBRequest = indexedDB.open(storeName, 1);
 
 		req.onupgradeneeded = () => {
