@@ -1,6 +1,7 @@
 import type { Backend, FileSystemMetadata } from '@zenfs/core';
 import { ApiError, Async, ErrorCode, FileSystem, FileType, InMemory, PreloadFile, Stats } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
+import { convertException } from './utils.js';
 
 declare global {
 	interface FileSystemDirectoryHandle {
@@ -14,14 +15,6 @@ declare global {
 export interface WebAccessOptions {
 	handle: FileSystemDirectoryHandle;
 }
-
-const handleError = (path = '', syscall: string, error: Error) => {
-	if (error.name === 'NotFoundError') {
-		throw ApiError.With('ENOENT', path, syscall);
-	}
-
-	throw error as ApiError;
-};
 
 export class WebAccessFS extends Async(FileSystem) {
 	private _handles: Map<string, FileSystemHandle> = new Map();
@@ -86,8 +79,8 @@ export class WebAccessFS extends Async(FileSystem) {
 
 			writable.close();
 			await this.unlink(oldPath);
-		} catch (err) {
-			handleError(oldPath, 'rename', err);
+		} catch (ex) {
+			throw convertException(ex, oldPath, 'rename');
 		}
 	}
 
@@ -137,8 +130,8 @@ export class WebAccessFS extends Async(FileSystem) {
 		if (handle instanceof FileSystemDirectoryHandle) {
 			try {
 				await handle.removeEntry(basename(path), { recursive: true });
-			} catch (e) {
-				handleError(path, 'unlink', e);
+			} catch (ex) {
+				throw convertException(ex, path, 'unlink');
 			}
 		}
 	}
@@ -180,40 +173,37 @@ export class WebAccessFS extends Async(FileSystem) {
 			return this._handles.get(path);
 		}
 
-		let walkedPath = '/';
-		const [, ...pathParts] = path.split('/');
-		const getHandleParts = async ([pathPart, ...remainingPathParts]: string[]) => {
-			const walkingPath = join(walkedPath, pathPart);
-			const continueWalk = (handle: FileSystemHandle) => {
-				walkedPath = walkingPath;
-				this._handles.set(walkedPath, handle);
+		let walked = '/';
 
-				if (remainingPathParts.length === 0) {
-					return this._handles.get(path);
-				}
-
-				getHandleParts(remainingPathParts);
-			};
-			const handle = this._handles.get(walkedPath) as FileSystemDirectoryHandle;
+		for (const part of path.split('/').slice(1)) {
+			const handle = this._handles.get(walked);
+			if (!(handle instanceof FileSystemDirectoryHandle)) {
+				throw ApiError.With('ENOTDIR', walked, 'getHandle');
+			}
+			walked = join(walked, part);
 
 			try {
-				return continueWalk(await handle.getDirectoryHandle(pathPart));
-			} catch (error) {
-				if (error.name === 'TypeMismatchError') {
+				const dirHandle = await handle.getDirectoryHandle(part);
+				this._handles.set(walked, dirHandle);
+			} catch (ex) {
+				if (ex.name == 'TypeMismatchError') {
 					try {
-						return continueWalk(await handle.getFileHandle(pathPart));
-					} catch (err) {
-						handleError(walkingPath, 'getHandle', err);
+						const fileHandle = await handle.getFileHandle(part);
+						this._handles.set(walked, fileHandle);
+					} catch (ex) {
+						convertException(ex, walked, 'getHandle');
 					}
-				} else if (error.message === 'Name is not allowed.') {
-					throw new ApiError(ErrorCode.ENOENT, error.message, walkingPath);
-				} else {
-					handleError(walkingPath, 'getHandle', error);
 				}
-			}
-		};
 
-		return await getHandleParts(pathParts);
+				if (ex.name === 'TypeError') {
+					throw new ApiError(ErrorCode.ENOENT, ex.message, walked, 'getHandle');
+				}
+
+				convertException(ex, walked, 'getHandle');
+			}
+		}
+
+		return this._handles.get(path);
 	}
 }
 

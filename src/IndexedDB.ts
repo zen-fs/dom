@@ -1,29 +1,13 @@
-import type { AsyncStoreOptions, Backend, Ino } from '@zenfs/core';
-import { AsyncTransaction, AsyncStore, AsyncStoreFS, ApiError, ErrorCode } from '@zenfs/core';
-
-/**
- * Converts a DOMException or a DOMError from an IndexedDB event into a
- * standardized ZenFS API error.
- * @hidden
- */
-function convertError(e: { name: string }, message: string = e.toString()): ApiError {
-	switch (e.name) {
-		case 'NotFoundError':
-			return new ApiError(ErrorCode.ENOENT, message);
-		case 'QuotaExceededError':
-			return new ApiError(ErrorCode.ENOSPC, message);
-		default:
-			// The rest do not seem to map cleanly to standard error codes.
-			return new ApiError(ErrorCode.EIO, message);
-	}
-}
+import type { AsyncStore, AsyncStoreOptions, AsyncTransaction, Backend, Ino } from '@zenfs/core';
+import { AsyncStoreFS } from '@zenfs/core';
+import { convertException } from './utils.js';
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {
 	return new Promise((resolve, reject) => {
 		request.onsuccess = () => resolve(request.result);
 		request.onerror = e => {
 			e.preventDefault();
-			reject(new ApiError(ErrorCode.EIO));
+			reject(convertException(request.error));
 		};
 	});
 }
@@ -37,32 +21,20 @@ export class IndexedDBTransaction implements AsyncTransaction {
 		public store: IDBObjectStore
 	) {}
 
-	public async get(key: Ino): Promise<Uint8Array> {
-		try {
-			return await wrap<Uint8Array>(this.store.get(key.toString()));
-		} catch (e) {
-			throw convertError(e);
-		}
+	public get(key: Ino): Promise<Uint8Array> {
+		return wrap<Uint8Array>(this.store.get(key.toString()));
 	}
 
 	/**
 	 * @todo return false when add has a key conflict (no error)
 	 */
 	public async put(key: Ino, data: Uint8Array, overwrite: boolean): Promise<boolean> {
-		try {
-			await wrap(overwrite ? this.store.put(data, key.toString()) : this.store.add(data, key.toString()));
-			return true;
-		} catch (e) {
-			throw convertError(e);
-		}
+		await wrap(this.store[overwrite ? 'put' : 'add'](data, key.toString()));
+		return true;
 	}
 
-	public async remove(key: Ino): Promise<void> {
-		try {
-			await wrap(this.store.delete(key.toString()));
-		} catch (e) {
-			throw convertError(e);
-		}
+	public remove(key: Ino): Promise<void> {
+		return wrap(this.store.delete(key.toString()));
 	}
 
 	public async commit(): Promise<void> {
@@ -73,7 +45,7 @@ export class IndexedDBTransaction implements AsyncTransaction {
 		try {
 			this.tx.abort();
 		} catch (e) {
-			throw convertError(e);
+			throw convertException(e);
 		}
 	}
 }
@@ -105,24 +77,12 @@ export class IndexedDBStore implements AsyncStore {
 	}
 
 	public clear(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			try {
-				const req: IDBRequest = this.db.transaction(this.storeName, 'readwrite').objectStore(this.storeName).clear();
-				req.onsuccess = () => resolve();
-				req.onerror = e => {
-					e.preventDefault();
-					reject(new ApiError(ErrorCode.EIO));
-				};
-			} catch (e) {
-				reject(convertError(e));
-			}
-		});
+		return wrap(this.db.transaction(this.storeName, 'readwrite').objectStore(this.storeName).clear());
 	}
 
 	public beginTransaction(): IndexedDBTransaction {
-		const tx = this.db.transaction(this.storeName, 'readwrite'),
-			objectStore = tx.objectStore(this.storeName);
-		return new IndexedDBTransaction(tx, objectStore);
+		const tx = this.db.transaction(this.storeName, 'readwrite');
+		return new IndexedDBTransaction(tx, tx.objectStore(this.storeName));
 	}
 }
 

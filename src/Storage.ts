@@ -1,5 +1,5 @@
-import type { Backend, Ino } from '@zenfs/core';
-import { SyncStore, SimpleSyncStore, SimpleSyncTransaction, SyncStoreFS, ApiError, ErrorCode, encode, decode } from '@zenfs/core';
+import type { Backend, Ino, SimpleSyncStore, SyncStore } from '@zenfs/core';
+import { ApiError, ErrorCode, SimpleSyncTransaction, SyncStoreFS, decode, encode } from '@zenfs/core';
 
 /**
  * A synchronous key-value store backed by Storage.

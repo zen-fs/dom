@@ -26,7 +26,8 @@
 		"@typescript-eslint/ban-types": "warn",
 		"@typescript-eslint/triple-slash-reference": "warn",
 		"@typescript-eslint/no-non-null-assertion": "off",
-		"@typescript-eslint/no-namespace": "warn"
+		"@typescript-eslint/no-namespace": "warn",
+		"@typescript-eslint/consistent-type-imports": "warn"
 	},
 	"plugins": ["@typescript-eslint"]
 }
