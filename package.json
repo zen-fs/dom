@@ -3,7 +3,7 @@
 	"version": "0.2.1",
 	"description": "DOM backends for ZenFS",
 	"main": "dist/index.js",
-	"types": "dist",
+	"types": "src/index.ts",
 	"keywords": [
 		"filesystem",
 		"node",
@@ -26,13 +26,6 @@
 	"exports": {
 		".": "./dist/index.js",
 		"./*": "./dist/*"
-	},
-	"typesVersions": {
-		"*": {
-			"*": [
-				"./dist/*"
-			]
-		}
 	},
 	"scripts": {
 		"format": "prettier --write .",
