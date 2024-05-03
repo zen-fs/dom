@@ -136,8 +136,8 @@ export class WebAccessFS extends Async(FileSystem) {
 		}
 	}
 
-	public async link(): Promise<void> {
-		throw new ApiError(ErrorCode.ENOTSUP);
+	public async link(srcpath: string): Promise<void> {
+		throw ApiError.With('ENOSYS', srcpath, 'WebAccessFS.link');
 	}
 
 	public async rmdir(path: string): Promise<void> {
