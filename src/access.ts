@@ -24,10 +24,6 @@ export class WebAccessFS extends Async(FileSystem) {
 	 */
 	_sync: FileSystem;
 
-	public async ready(): Promise<this> {
-		return this;
-	}
-
 	public constructor({ handle }: WebAccessOptions) {
 		super();
 		this._handles.set('/', handle);
