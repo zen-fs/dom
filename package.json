@@ -1,6 +1,6 @@
 {
 	"name": "@zenfs/dom",
-	"version": "0.2.4",
+	"version": "0.2.5",
 	"description": "DOM backends for ZenFS",
 	"main": "dist/index.js",
 	"types": "src/index.ts",
