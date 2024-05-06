@@ -70,8 +70,7 @@ export class WebAccessFS extends Async(FileSystem) {
 			}
 			const newFile = await destFolder.getFileHandle(basename(newPath), { create: true });
 			const writable = await newFile.createWritable();
-			const buffer = await oldFile.arrayBuffer();
-			await writable.write(buffer);
+			await writable.write(await oldFile.arrayBuffer());
 
 			writable.close();
 			await this.unlink(oldPath);
@@ -113,11 +112,16 @@ export class WebAccessFS extends Async(FileSystem) {
 
 	public async openFile(path: string, flag: string): Promise<PreloadFile<this>> {
 		const handle = await this.getHandle(path);
-		if (handle instanceof FileSystemFileHandle) {
+		if (!(handle instanceof FileSystemFileHandle)) {
+			throw ApiError.With('EISDIR', path, 'openFile');
+		}
+		try {
 			const file = await handle.getFile();
 			const data = new Uint8Array(await file.arrayBuffer());
 			const stats = new Stats({ mode: 0o777 | FileType.FILE, size: file.size, mtimeMs: file.lastModified });
 			return new PreloadFile(this, path, flag, stats, data);
+		} catch (ex) {
+			throw convertException(ex, path, 'openFile');
 		}
 	}
 
@@ -147,9 +151,10 @@ export class WebAccessFS extends Async(FileSystem) {
 		}
 
 		const handle = await this.getHandle(dirname(path));
-		if (handle instanceof FileSystemDirectoryHandle) {
-			await handle.getDirectoryHandle(basename(path), { create: true });
+		if (!(handle instanceof FileSystemDirectoryHandle)) {
+			throw ApiError.With('ENOTDIR', path, 'mkdir');
 		}
+		await handle.getDirectoryHandle(basename(path), { create: true });
 	}
 
 	public async readdir(path: string): Promise<string[]> {
