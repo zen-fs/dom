@@ -9,7 +9,7 @@
 
 -   `WebStorage`: Stores files in a `Storage` object, like `localStorage` and `sessionStorage`.
 -   `IndexedDB`: Stores files into an `IndexedDB` object database.
--   `WebAccess`: Store files using the [Web File System API](https://developer.mozilla.org/Web/API/File_System_API).
+-   `WebAccess`: Store files using the [File System Access API](https://developer.mozilla.org/Web/API/File_System_API).
 
 For more information, see the [API documentation](https://zen-fs.github.io/dom).
 
