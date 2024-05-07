@@ -1,13 +1,13 @@
 import type { AsyncStore, AsyncStoreOptions, AsyncTransaction, Backend, Ino } from '@zenfs/core';
 import { AsyncStoreFS } from '@zenfs/core';
-import { convertException } from './utils.js';
+import { convertException, type ConvertException } from './utils.js';
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {
 	return new Promise((resolve, reject) => {
 		request.onsuccess = () => resolve(request.result);
 		request.onerror = e => {
 			e.preventDefault();
-			reject(convertException(request.error));
+			reject(convertException(request.error!));
 		};
 	});
 }
@@ -45,7 +45,7 @@ export class IndexedDBTransaction implements AsyncTransaction {
 		try {
 			this.tx.abort();
 		} catch (e) {
-			throw convertException(e);
+			throw convertException(e as ConvertException);
 		}
 	}
 }

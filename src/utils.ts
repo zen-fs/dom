@@ -55,16 +55,22 @@ function errnoForDOMException(ex: DOMException): keyof typeof ErrorCode {
 }
 
 /**
- * Handles converting errors, then rethrowing them
+ * @internal
  */
-export function convertException(ex: Error | ApiError | DOMException, path?: string, syscall?: string): ApiError {
+export type ConvertException = ApiError | DOMException | Error;
+
+/**
+ * Handles converting errors, then rethrowing them
+ * @internal
+ */
+export function convertException(ex: ConvertException, path?: string, syscall?: string): ApiError {
 	if (ex instanceof ApiError) {
 		return ex;
 	}
 
 	const code = ex instanceof DOMException ? ErrorCode[errnoForDOMException(ex)] : ErrorCode.EIO;
 	const error = new ApiError(code, ex.message, path, syscall);
-	error.stack = ex.stack;
+	error.stack = ex.stack!;
 	error.cause = ex.cause;
 	return error;
 }

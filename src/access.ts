@@ -1,7 +1,7 @@
 import type { Backend, FileSystemMetadata } from '@zenfs/core';
 import { ApiError, Async, ErrorCode, FileSystem, FileType, InMemory, PreloadFile, Stats } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
-import { convertException } from './utils.js';
+import { convertException, type ConvertException } from './utils.js';
 
 declare global {
 	interface FileSystemDirectoryHandle {
@@ -75,7 +75,7 @@ export class WebAccessFS extends Async(FileSystem) {
 			writable.close();
 			await this.unlink(oldPath);
 		} catch (ex) {
-			throw convertException(ex, oldPath, 'rename');
+			throw convertException(ex as ConvertException, oldPath, 'rename');
 		}
 	}
 
@@ -108,6 +108,7 @@ export class WebAccessFS extends Async(FileSystem) {
 			const { lastModified, size } = await handle.getFile();
 			return new Stats({ mode: 0o777 | FileType.FILE, size, mtimeMs: lastModified });
 		}
+		throw new ApiError(ErrorCode.EBADE, 'Handle is not a directory or file', path, 'stat');
 	}
 
 	public async openFile(path: string, flag: string): Promise<PreloadFile<this>> {
@@ -121,7 +122,7 @@ export class WebAccessFS extends Async(FileSystem) {
 			const stats = new Stats({ mode: 0o777 | FileType.FILE, size: file.size, mtimeMs: file.lastModified });
 			return new PreloadFile(this, path, flag, stats, data);
 		} catch (ex) {
-			throw convertException(ex, path, 'openFile');
+			throw convertException(ex as ConvertException, path, 'openFile');
 		}
 	}
 
@@ -131,7 +132,7 @@ export class WebAccessFS extends Async(FileSystem) {
 			try {
 				await handle.removeEntry(basename(path), { recursive: true });
 			} catch (ex) {
-				throw convertException(ex, path, 'unlink');
+				throw convertException(ex as ConvertException, path, 'unlink');
 			}
 		}
 	}
@@ -171,7 +172,7 @@ export class WebAccessFS extends Async(FileSystem) {
 
 	protected async getHandle(path: string): Promise<FileSystemHandle> {
 		if (this._handles.has(path)) {
-			return this._handles.get(path);
+			return this._handles.get(path)!;
 		}
 
 		let walked = '/';
@@ -186,13 +187,14 @@ export class WebAccessFS extends Async(FileSystem) {
 			try {
 				const dirHandle = await handle.getDirectoryHandle(part);
 				this._handles.set(walked, dirHandle);
-			} catch (ex) {
+			} catch (_ex) {
+				const ex = _ex as DOMException;
 				if (ex.name == 'TypeMismatchError') {
 					try {
 						const fileHandle = await handle.getFileHandle(part);
 						this._handles.set(walked, fileHandle);
 					} catch (ex) {
-						convertException(ex, walked, 'getHandle');
+						convertException(ex as ConvertException, walked, 'getHandle');
 					}
 				}
 
@@ -204,7 +206,7 @@ export class WebAccessFS extends Async(FileSystem) {
 			}
 		}
 
-		return this._handles.get(path);
+		return this._handles.get(path)!;
 	}
 }
 

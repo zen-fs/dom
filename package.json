@@ -46,6 +46,6 @@
 		"typescript": "5.2.2"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^0.9.4"
+		"@zenfs/core": "^0.9.7"
 	}
 }
