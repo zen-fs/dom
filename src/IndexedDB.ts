@@ -114,7 +114,7 @@ export const IndexedDB = {
 			required: false,
 			description: 'The name of this file system. You can have multiple IndexedDB file systems operating at once, but each must have a different name.',
 		},
-		cacheSize: {
+		lruCacheSize: {
 			type: 'number',
 			required: false,
 			description: 'The size of the inode cache. Defaults to 100. A size of 0 or below disables caching.',
@@ -146,4 +146,4 @@ export const IndexedDB = {
 		const fs = new AsyncStoreFS({ ...options, store });
 		return fs;
 	},
-} as const satisfies Backend;
+} as const satisfies Backend<AsyncStoreFS, IndexedDBOptions>;

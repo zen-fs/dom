@@ -1,5 +1,5 @@
 import type { Backend, FileSystemMetadata } from '@zenfs/core';
-import { ApiError, Async, ErrorCode, FileSystem, FileType, InMemory, PreloadFile, Stats } from '@zenfs/core';
+import { ErrnoError, Async, Errno, FileSystem, FileType, InMemory, PreloadFile, Stats } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
 import { convertException, type ConvertException } from './utils.js';
 
@@ -99,7 +99,7 @@ export class WebAccessFS extends Async(FileSystem) {
 	public async stat(path: string): Promise<Stats> {
 		const handle = await this.getHandle(path);
 		if (!handle) {
-			throw ApiError.With('ENOENT', path, 'stat');
+			throw ErrnoError.With('ENOENT', path, 'stat');
 		}
 		if (handle instanceof FileSystemDirectoryHandle) {
 			return new Stats({ mode: 0o777 | FileType.DIRECTORY, size: 4096 });
@@ -108,13 +108,13 @@ export class WebAccessFS extends Async(FileSystem) {
 			const { lastModified, size } = await handle.getFile();
 			return new Stats({ mode: 0o777 | FileType.FILE, size, mtimeMs: lastModified });
 		}
-		throw new ApiError(ErrorCode.EBADE, 'Handle is not a directory or file', path, 'stat');
+		throw new ErrnoError(Errno.EBADE, 'Handle is not a directory or file', path, 'stat');
 	}
 
 	public async openFile(path: string, flag: string): Promise<PreloadFile<this>> {
 		const handle = await this.getHandle(path);
 		if (!(handle instanceof FileSystemFileHandle)) {
-			throw ApiError.With('EISDIR', path, 'openFile');
+			throw ErrnoError.With('EISDIR', path, 'openFile');
 		}
 		try {
 			const file = await handle.getFile();
@@ -138,7 +138,7 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async link(srcpath: string): Promise<void> {
-		throw ApiError.With('ENOSYS', srcpath, 'WebAccessFS.link');
+		throw ErrnoError.With('ENOSYS', srcpath, 'WebAccessFS.link');
 	}
 
 	public async rmdir(path: string): Promise<void> {
@@ -148,12 +148,12 @@ export class WebAccessFS extends Async(FileSystem) {
 	public async mkdir(path: string): Promise<void> {
 		const existingHandle = await this.getHandle(path);
 		if (existingHandle) {
-			throw ApiError.With('EEXIST', path, 'mkdir');
+			throw ErrnoError.With('EEXIST', path, 'mkdir');
 		}
 
 		const handle = await this.getHandle(dirname(path));
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
-			throw ApiError.With('ENOTDIR', path, 'mkdir');
+			throw ErrnoError.With('ENOTDIR', path, 'mkdir');
 		}
 		await handle.getDirectoryHandle(basename(path), { create: true });
 	}
@@ -161,7 +161,7 @@ export class WebAccessFS extends Async(FileSystem) {
 	public async readdir(path: string): Promise<string[]> {
 		const handle = await this.getHandle(path);
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
-			throw ApiError.With('ENOTDIR', path, 'readdir');
+			throw ErrnoError.With('ENOTDIR', path, 'readdir');
 		}
 		const _keys: string[] = [];
 		for await (const key of handle.keys()) {
@@ -180,7 +180,7 @@ export class WebAccessFS extends Async(FileSystem) {
 		for (const part of path.split('/').slice(1)) {
 			const handle = this._handles.get(walked);
 			if (!(handle instanceof FileSystemDirectoryHandle)) {
-				throw ApiError.With('ENOTDIR', walked, 'getHandle');
+				throw ErrnoError.With('ENOTDIR', walked, 'getHandle');
 			}
 			walked = join(walked, part);
 
@@ -199,7 +199,7 @@ export class WebAccessFS extends Async(FileSystem) {
 				}
 
 				if (ex.name === 'TypeError') {
-					throw new ApiError(ErrorCode.ENOENT, ex.message, walked, 'getHandle');
+					throw new ErrnoError(Errno.ENOENT, ex.message, walked, 'getHandle');
 				}
 
 				convertException(ex, walked, 'getHandle');
@@ -228,4 +228,4 @@ export const WebAccess = {
 	create(options: WebAccessOptions) {
 		return new WebAccessFS(options);
 	},
-} as const satisfies Backend;
+} as const satisfies Backend<WebAccessFS, WebAccessOptions>;

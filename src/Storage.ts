@@ -1,5 +1,5 @@
 import type { Backend, Ino, SimpleSyncStore, SyncStore } from '@zenfs/core';
-import { ApiError, ErrorCode, SimpleSyncTransaction, SyncStoreFS, decode, encode } from '@zenfs/core';
+import { ErrnoError, Errno, SimpleSyncTransaction, SyncStoreFS, decode, encode } from '@zenfs/core';
 
 /**
  * A synchronous key-value store backed by Storage.
@@ -38,7 +38,7 @@ export class WebStorageStore implements SyncStore, SimpleSyncStore {
 			this._storage.setItem(key.toString(), decode(data));
 			return true;
 		} catch (e) {
-			throw new ApiError(ErrorCode.ENOSPC, 'Storage is full.');
+			throw new ErrnoError(Errno.ENOSPC, 'Storage is full.');
 		}
 	}
 
@@ -46,7 +46,7 @@ export class WebStorageStore implements SyncStore, SimpleSyncStore {
 		try {
 			this._storage.removeItem(key.toString());
 		} catch (e) {
-			throw new ApiError(ErrorCode.EIO, 'Unable to delete key ' + key + ': ' + e);
+			throw new ErrnoError(Errno.EIO, 'Unable to delete key ' + key + ': ' + e);
 		}
 	}
 }
@@ -82,4 +82,4 @@ export const WebStorage = {
 	create({ storage = globalThis.localStorage }: WebStorageOptions) {
 		return new SyncStoreFS({ store: new WebStorageStore(storage) });
 	},
-} as const satisfies Backend;
+} as const satisfies Backend<SyncStoreFS, WebStorageOptions>;

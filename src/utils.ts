@@ -1,10 +1,10 @@
-import { ApiError, ErrorCode } from '@zenfs/core';
+import { ErrnoError, Errno } from '@zenfs/core';
 
 /**
- * Converts a DOMException into an ErrorCode
+ * Converts a DOMException into an Errno
  * @see https://developer.mozilla.org/Web/API/DOMException
  */
-function errnoForDOMException(ex: DOMException): keyof typeof ErrorCode {
+function errnoForDOMException(ex: DOMException): keyof typeof Errno {
 	switch (ex.name) {
 		case 'IndexSizeError':
 		case 'HierarchyRequestError':
@@ -57,19 +57,19 @@ function errnoForDOMException(ex: DOMException): keyof typeof ErrorCode {
 /**
  * @internal
  */
-export type ConvertException = ApiError | DOMException | Error;
+export type ConvertException = ErrnoError | DOMException | Error;
 
 /**
  * Handles converting errors, then rethrowing them
  * @internal
  */
-export function convertException(ex: ConvertException, path?: string, syscall?: string): ApiError {
-	if (ex instanceof ApiError) {
+export function convertException(ex: ConvertException, path?: string, syscall?: string): ErrnoError {
+	if (ex instanceof ErrnoError) {
 		return ex;
 	}
 
-	const code = ex instanceof DOMException ? ErrorCode[errnoForDOMException(ex)] : ErrorCode.EIO;
-	const error = new ApiError(code, ex.message, path, syscall);
+	const code = ex instanceof DOMException ? Errno[errnoForDOMException(ex)] : Errno.EIO;
+	const error = new ErrnoError(code, ex.message, path, syscall);
 	error.stack = ex.stack!;
 	error.cause = ex.cause;
 	return error;
