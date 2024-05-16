@@ -1,5 +1,7 @@
-import type { AsyncStore, AsyncStoreOptions, AsyncTransaction, Backend, Ino } from '@zenfs/core';
-import { AsyncStoreFS } from '@zenfs/core';
+import type { Store } from '@zenfs/core/backends/store/store.js';
+import { AsyncTransaction } from '@zenfs/core/backends/store/store.js';
+import type { Backend, Ino } from '@zenfs/core';
+import { ErrnoError, StoreFS } from '@zenfs/core';
 import { convertException, type ConvertException } from './utils.js';
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {
@@ -15,22 +17,20 @@ function wrap<T>(request: IDBRequest<T>): Promise<T> {
 /**
  * @hidden
  */
-export class IndexedDBTransaction implements AsyncTransaction {
+export class IndexedDBTransaction extends AsyncTransaction {
 	constructor(
 		public tx: IDBTransaction,
 		public store: IDBObjectStore
-	) {}
-
-	public get(key: Ino): Promise<Uint8Array> {
-		return wrap<Uint8Array>(this.store.get(key.toString()));
+	) {
+		super();
 	}
 
-	/**
-	 * @todo return false when add has a key conflict (no error)
-	 */
-	public async put(key: Ino, data: Uint8Array, overwrite: boolean): Promise<boolean> {
-		await wrap(this.store[overwrite ? 'put' : 'add'](data, key.toString()));
-		return true;
+	public get(key: Ino): Promise<Uint8Array> {
+		return wrap(this.store.get(key.toString()));
+	}
+
+	public async set(key: Ino, data: Uint8Array): Promise<void> {
+		await wrap(this.store.put(data, key.toString()));
 	}
 
 	public remove(key: Ino): Promise<void> {
@@ -38,7 +38,7 @@ export class IndexedDBTransaction implements AsyncTransaction {
 	}
 
 	public async commit(): Promise<void> {
-		return;
+		this.tx.commit();
 	}
 
 	public async abort(): Promise<void> {
@@ -50,46 +50,51 @@ export class IndexedDBTransaction implements AsyncTransaction {
 	}
 }
 
-export class IndexedDBStore implements AsyncStore {
-	public static async create(storeName: string, indexedDB: IDBFactory = globalThis.indexedDB): Promise<IndexedDBStore> {
-		const req: IDBOpenDBRequest = indexedDB.open(storeName, 1);
+async function createDB(name: string, indexedDB: IDBFactory = globalThis.indexedDB): Promise<IDBDatabase> {
+	const req: IDBOpenDBRequest = indexedDB.open(name);
 
-		req.onupgradeneeded = () => {
-			const db: IDBDatabase = req.result;
-			// This should never happen; we're at version 1. Why does another database exist?
-			if (db.objectStoreNames.contains(storeName)) {
-				db.deleteObjectStore(storeName);
-			}
-			db.createObjectStore(storeName);
-		};
+	req.onupgradeneeded = () => {
+		const db: IDBDatabase = req.result;
+		// This should never happen; we're at version 1. Why does another database exist?
+		if (db.objectStoreNames.contains(name)) {
+			db.deleteObjectStore(name);
+		}
+		db.createObjectStore(name);
+	};
 
-		const result = await wrap(req);
-		return new IndexedDBStore(result, storeName);
+	const result = await wrap(req);
+	return result;
+}
+
+export class IndexedDBStore implements Store {
+	public constructor(protected db: IDBDatabase) {}
+
+	public sync(): Promise<void> {
+		throw new Error('Method not implemented.');
 	}
 
-	constructor(
-		protected db: IDBDatabase,
-		protected storeName: string
-	) {}
-
 	public get name(): string {
-		return IndexedDB.name + ':' + this.storeName;
+		return IndexedDB.name + ':' + this.db.name;
 	}
 
 	public clear(): Promise<void> {
-		return wrap(this.db.transaction(this.storeName, 'readwrite').objectStore(this.storeName).clear());
+		return wrap(this.db.transaction(this.db.name, 'readwrite').objectStore(this.db.name).clear());
 	}
 
-	public beginTransaction(): IndexedDBTransaction {
-		const tx = this.db.transaction(this.storeName, 'readwrite');
-		return new IndexedDBTransaction(tx, tx.objectStore(this.storeName));
+	public clearSync(): void {
+		throw ErrnoError.With('ENOSYS', undefined, 'IndexedDBStore.clearSync');
+	}
+
+	public transaction(): IndexedDBTransaction {
+		const tx = this.db.transaction(this.db.name, 'readwrite');
+		return new IndexedDBTransaction(tx, tx.objectStore(this.db.name));
 	}
 }
 
 /**
  * Configuration options for the IndexedDB file system.
  */
-export interface IndexedDBOptions extends Omit<AsyncStoreOptions, 'store'> {
+export interface IndexedDBOptions {
 	/**
 	 * The name of this file system. You can have multiple IndexedDB file systems operating at once, but each must have a different name.
 	 */
@@ -114,11 +119,6 @@ export const IndexedDB = {
 			required: false,
 			description: 'The name of this file system. You can have multiple IndexedDB file systems operating at once, but each must have a different name.',
 		},
-		lruCacheSize: {
-			type: 'number',
-			required: false,
-			description: 'The size of the inode cache. Defaults to 100. A size of 0 or below disables caching.',
-		},
 		idbFactory: {
 			type: 'object',
 			required: false,
@@ -141,9 +141,10 @@ export const IndexedDB = {
 		}
 	},
 
-	create(options: IndexedDBOptions) {
-		const store = IndexedDBStore.create(options.storeName || 'zenfs', options.idbFactory);
-		const fs = new AsyncStoreFS({ ...options, store });
+	async create(options: IndexedDBOptions) {
+		const db = await createDB(options.storeName || 'zenfs', options.idbFactory);
+		const store = new IndexedDBStore(db);
+		const fs = new StoreFS(store);
 		return fs;
 	},
-} as const satisfies Backend<AsyncStoreFS, IndexedDBOptions>;
+} as const satisfies Backend<StoreFS, IndexedDBOptions>;

@@ -1,10 +1,10 @@
-import type { Backend, Ino, SimpleSyncStore, SyncStore } from '@zenfs/core';
-import { ErrnoError, Errno, SimpleSyncTransaction, SyncStoreFS, decode, encode } from '@zenfs/core';
+import type { Backend, Ino, SimpleSyncStore, Store } from '@zenfs/core';
+import { ErrnoError, Errno, SimpleTransaction, StoreFS, decode, encode } from '@zenfs/core';
 
 /**
  * A synchronous key-value store backed by Storage.
  */
-export class WebStorageStore implements SyncStore, SimpleSyncStore {
+export class WebStorageStore implements Store, SimpleSyncStore {
 	public get name(): string {
 		return WebStorage.name;
 	}
@@ -15,9 +15,15 @@ export class WebStorageStore implements SyncStore, SimpleSyncStore {
 		this._storage.clear();
 	}
 
-	public beginTransaction(): SimpleSyncTransaction {
+	public clearSync(): void {
+		this._storage.clear();
+	}
+
+	public async sync(): Promise<void> {}
+
+	public transaction(): SimpleTransaction {
 		// No need to differentiate.
-		return new SimpleSyncTransaction(this);
+		return new SimpleTransaction(this);
 	}
 
 	public get(key: Ino): Uint8Array | undefined {
@@ -29,20 +35,15 @@ export class WebStorageStore implements SyncStore, SimpleSyncStore {
 		return encode(data);
 	}
 
-	public put(key: Ino, data: Uint8Array, overwrite: boolean): boolean {
+	public set(key: Ino, data: Uint8Array): void {
 		try {
-			if (!overwrite && this._storage.getItem(key.toString()) !== null) {
-				// Don't want to overwrite the key!
-				return false;
-			}
 			this._storage.setItem(key.toString(), decode(data));
-			return true;
 		} catch (e) {
 			throw new ErrnoError(Errno.ENOSPC, 'Storage is full.');
 		}
 	}
 
-	public remove(key: Ino): void {
+	public delete(key: Ino): void {
 		try {
 			this._storage.removeItem(key.toString());
 		} catch (e) {
@@ -80,6 +81,6 @@ export const WebStorage = {
 	},
 
 	create({ storage = globalThis.localStorage }: WebStorageOptions) {
-		return new SyncStoreFS({ store: new WebStorageStore(storage) });
+		return new StoreFS(new WebStorageStore(storage));
 	},
-} as const satisfies Backend<SyncStoreFS, WebStorageOptions>;
+} as const satisfies Backend<StoreFS, WebStorageOptions>;

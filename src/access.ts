@@ -37,10 +37,10 @@ export class WebAccessFS extends Async(FileSystem) {
 		};
 	}
 
-	public async sync(p: string, data: Uint8Array, stats: Stats): Promise<void> {
-		const currentStats = await this.stat(p);
+	public async sync(path: string, data: Uint8Array, stats: Stats): Promise<void> {
+		const currentStats = await this.stat(path);
 		if (stats.mtime !== currentStats!.mtime) {
-			await this.writeFile(p, data);
+			await this.writeFile(path, data);
 		}
 	}
 
