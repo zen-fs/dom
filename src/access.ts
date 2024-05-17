@@ -22,12 +22,11 @@ export class WebAccessFS extends Async(FileSystem) {
 	/**
 	 * @hidden
 	 */
-	_sync: FileSystem;
+	_sync: FileSystem = InMemory.create({ name: 'accessfs-cache' });
 
-	public constructor({ handle }: WebAccessOptions) {
+	public constructor(handle: FileSystemDirectoryHandle) {
 		super();
 		this._handles.set('/', handle);
-		this._sync = InMemory.create({ name: 'accessfs-cache' });
 	}
 
 	public metadata(): FileSystemMetadata {
@@ -226,6 +225,6 @@ export const WebAccess = {
 	},
 
 	create(options: WebAccessOptions) {
-		return new WebAccessFS(options);
+		return new WebAccessFS(options.handle);
 	},
 } as const satisfies Backend<WebAccessFS, WebAccessOptions>;
