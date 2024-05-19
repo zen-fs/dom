@@ -33,6 +33,7 @@ export class WebAccessFS extends Async(FileSystem) {
 		return {
 			...super.metadata(),
 			name: 'WebAccess',
+			noResizableBuffers: true,
 		};
 	}
 
@@ -78,13 +79,17 @@ export class WebAccessFS extends Async(FileSystem) {
 		}
 	}
 
-	public async writeFile(fname: string, data: Uint8Array): Promise<void> {
-		const handle = await this.getHandle(dirname(fname));
+	public async writeFile(path: string, data: Uint8Array): Promise<void> {
+		if (data.buffer.resizable) {
+			throw new ErrnoError(Errno.EINVAL, 'Resizable buffers can not be written', path, 'write');
+		}
+
+		const handle = await this.getHandle(dirname(path));
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
 			return;
 		}
 
-		const file = await handle.getFileHandle(basename(fname), { create: true });
+		const file = await handle.getFileHandle(basename(path), { create: true });
 		const writable = await file.createWritable();
 		await writable.write(data);
 		await writable.close();
