@@ -167,11 +167,11 @@ export class WebAccessFS extends Async(FileSystem) {
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
 			throw ErrnoError.With('ENOTDIR', path, 'readdir');
 		}
-		const _keys: string[] = [];
+		const keys: string[] = [];
 		for await (const key of handle.keys()) {
-			_keys.push(join(path, key));
+			keys.push(key);
 		}
-		return _keys;
+		return keys;
 	}
 
 	protected async getHandle(path: string): Promise<FileSystemHandle> {
