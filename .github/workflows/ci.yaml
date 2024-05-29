@@ -10,7 +10,7 @@ on:
 
 jobs:
     ci:
-        uses: zen-fs/core/.github/workflows/ci.yaml
+        uses: zen-fs/core/.github/workflows/ci.yaml@main
         permissions:
             contents: read
             id-token: write
