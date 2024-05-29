@@ -10,6 +10,7 @@ on:
 
 jobs:
     ci:
+        name: Continuous Integration
         uses: zen-fs/core/.github/workflows/ci.yaml@main
         permissions:
             contents: read

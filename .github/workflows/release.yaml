@@ -6,9 +6,11 @@ on:
 
 jobs:
     ci:
+        name: Continuous Integration
         uses: zen-fs/core/.github/workflows/ci.yaml@main
         permissions:
             contents: read
             id-token: write
     release:
+        name: Release
         uses: zen-fs/core/.github/workflows/release.yaml@main
