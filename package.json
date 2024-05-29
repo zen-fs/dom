@@ -3,7 +3,7 @@
 	"version": "0.2.11",
 	"description": "DOM backends for ZenFS",
 	"main": "dist/index.js",
-	"types": "src/index.ts",
+	"types": "dist/index.d.ts",
 	"keywords": [
 		"filesystem",
 		"node",
