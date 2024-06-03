@@ -17,24 +17,27 @@ function wrap<T>(request: IDBRequest<T>): Promise<T> {
 /**
  * @hidden
  */
-export class IndexedDBTransaction extends AsyncTransaction {
+export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
+	private _idb: IDBObjectStore;
+
 	constructor(
 		public tx: IDBTransaction,
-		public store: IDBObjectStore
+		public store: IndexedDBStore
 	) {
-		super();
+		super(store);
+		this._idb = tx.objectStore(store.name);
 	}
 
 	public get(key: Ino): Promise<Uint8Array> {
-		return wrap(this.store.get(key.toString()));
+		return wrap(this._idb.get(key.toString()));
 	}
 
 	public async set(key: Ino, data: Uint8Array): Promise<void> {
-		await wrap(this.store.put(data, key.toString()));
+		await wrap(this._idb.put(data, key.toString()));
 	}
 
 	public remove(key: Ino): Promise<void> {
-		return wrap(this.store.delete(key.toString()));
+		return wrap(this._idb.delete(key.toString()));
 	}
 
 	public async commit(): Promise<void> {
@@ -74,11 +77,11 @@ export class IndexedDBStore implements Store {
 	}
 
 	public get name(): string {
-		return IndexedDB.name + ':' + this.db.name;
+		return this.db.name;
 	}
 
 	public clear(): Promise<void> {
-		return wrap(this.db.transaction(this.db.name, 'readwrite').objectStore(this.db.name).clear());
+		return wrap(this.db.transaction(this.name, 'readwrite').objectStore(this.name).clear());
 	}
 
 	public clearSync(): void {
@@ -86,8 +89,8 @@ export class IndexedDBStore implements Store {
 	}
 
 	public transaction(): IndexedDBTransaction {
-		const tx = this.db.transaction(this.db.name, 'readwrite');
-		return new IndexedDBTransaction(tx, tx.objectStore(this.db.name));
+		const tx = this.db.transaction(this.name, 'readwrite');
+		return new IndexedDBTransaction(tx, this);
 	}
 }
 
@@ -145,7 +148,7 @@ export const IndexedDB = {
 		const db = await createDB(options.storeName || 'zenfs', options.idbFactory);
 		const store = new IndexedDBStore(db);
 		const fs = new (Async(StoreFS))(store);
-		if(!options?.disableAsyncCache) {
+		if (!options?.disableAsyncCache) {
 			fs._sync = InMemory.create({ name: 'idb-cache' });
 		}
 		return fs;
