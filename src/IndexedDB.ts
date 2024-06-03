@@ -1,7 +1,7 @@
 import type { Store } from '@zenfs/core/backends/store/store.js';
 import { AsyncTransaction } from '@zenfs/core/backends/store/store.js';
-import type { Backend, Ino } from '@zenfs/core';
-import { Async, ErrnoError, StoreFS } from '@zenfs/core';
+import type { Backend, Ino, SharedConfig } from '@zenfs/core';
+import { Async, ErrnoError, InMemory, StoreFS } from '@zenfs/core';
 import { convertException, type ConvertException } from './utils.js';
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {
@@ -141,10 +141,13 @@ export const IndexedDB = {
 		}
 	},
 
-	async create(options: IndexedDBOptions) {
+	async create(options: IndexedDBOptions & Partial<SharedConfig>) {
 		const db = await createDB(options.storeName || 'zenfs', options.idbFactory);
 		const store = new IndexedDBStore(db);
-		const fs = new (Async(StoreFS) as typeof StoreFS)(store);
+		const fs = new (Async(StoreFS))(store);
+		if(!options?.disableAsyncCache) {
+			fs._sync = InMemory.create({ name: 'idb-cache' });
+		}
 		return fs;
 	},
 } as const satisfies Backend<StoreFS, IndexedDBOptions>;
