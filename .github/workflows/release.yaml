@@ -8,3 +8,4 @@ jobs:
     release:
         name: Release
         uses: zen-fs/core/.github/workflows/release.yaml@main
+        secrets: inherit
