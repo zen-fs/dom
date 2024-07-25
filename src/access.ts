@@ -1,5 +1,6 @@
 import type { Backend, FileSystemMetadata } from '@zenfs/core';
-import { ErrnoError, Async, Errno, FileSystem, FileType, InMemory, PreloadFile, Stats } from '@zenfs/core';
+import { Async, Errno, ErrnoError, FileSystem, InMemory, PreloadFile, Stats } from '@zenfs/core';
+import { S_IFDIR, S_IFREG } from '@zenfs/core/emulation/constants.js';
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
 import { convertException, type ConvertException } from './utils.js';
 
@@ -106,11 +107,11 @@ export class WebAccessFS extends Async(FileSystem) {
 			throw ErrnoError.With('ENOENT', path, 'stat');
 		}
 		if (handle instanceof FileSystemDirectoryHandle) {
-			return new Stats({ mode: 0o777 | FileType.DIRECTORY, size: 4096 });
+			return new Stats({ mode: 0o777 | S_IFDIR, size: 4096 });
 		}
 		if (handle instanceof FileSystemFileHandle) {
 			const { lastModified, size } = await handle.getFile();
-			return new Stats({ mode: 0o777 | FileType.FILE, size, mtimeMs: lastModified });
+			return new Stats({ mode: 0o777 | S_IFREG, size, mtimeMs: lastModified });
 		}
 		throw new ErrnoError(Errno.EBADE, 'Handle is not a directory or file', path, 'stat');
 	}
@@ -123,7 +124,7 @@ export class WebAccessFS extends Async(FileSystem) {
 		try {
 			const file = await handle.getFile();
 			const data = new Uint8Array(await file.arrayBuffer());
-			const stats = new Stats({ mode: 0o777 | FileType.FILE, size: file.size, mtimeMs: file.lastModified });
+			const stats = new Stats({ mode: 0o777 | S_IFREG, size: file.size, mtimeMs: file.lastModified });
 			return new PreloadFile(this, path, flag, stats, data);
 		} catch (ex) {
 			throw convertException(ex as ConvertException, path, 'openFile');
