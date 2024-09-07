@@ -41,7 +41,7 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 	}
 
 	public async commit(): Promise<void> {
-		if(this.done) {
+		if (this.done) {
 			return;
 		}
 		this.done = true;
@@ -49,7 +49,7 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 	}
 
 	public async abort(): Promise<void> {
-		if(this.done) {
+		if (this.done) {
 			return;
 		}
 		this.done = true;
