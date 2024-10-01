@@ -24,7 +24,7 @@ For more information, see the [API documentation](https://zen-fs.github.io/dom).
 import { configure, fs } from '@zenfs/core';
 import { WebStorage } from '@zenfs/dom';
 
-await configure({ backend: WebStorage, storage: localStorage });
+await configureSingle({ backend: WebStorage, storage: localStorage });
 
 if (!fs.existsSync('/test.txt')) {
 	fs.writeFileSync('/test.txt', 'This will persist across reloads!');
