@@ -20,7 +20,7 @@ function wrap<T>(request: IDBRequest<T>): Promise<T> {
 export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 	private _idb: IDBObjectStore;
 
-	constructor(
+	public constructor(
 		public tx: IDBTransaction,
 		public store: IndexedDBStore
 	) {

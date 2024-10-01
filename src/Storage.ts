@@ -9,7 +9,7 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 		return WebStorage.name;
 	}
 
-	constructor(protected _storage: Storage) {}
+	public constructor(protected _storage: Storage) {}
 
 	public clear(): void {
 		this._storage.clear();
