@@ -6,7 +6,7 @@
 	"types": "dist/index.d.ts",
 	"type": "module",
 	"homepage": "https://github.com/zen-fs/dom",
-	"author": "James P. <jp@drvortex.dev>",
+	"author": "James Prevett <jp@jamespre.dev>",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
