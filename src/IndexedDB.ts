@@ -1,7 +1,5 @@
-import type { Store } from '@zenfs/core/backends/store/store.js';
-import { AsyncTransaction } from '@zenfs/core/backends/store/store.js';
-import type { Backend, Ino, SharedConfig } from '@zenfs/core';
-import { Async, ErrnoError, InMemory, StoreFS } from '@zenfs/core';
+import type { Backend, Ino, SharedConfig, Store } from '@zenfs/core';
+import { Async, ErrnoError, InMemory, StoreFS, AsyncTransaction } from '@zenfs/core';
 import { convertException, type ConvertException } from './utils.js';
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {

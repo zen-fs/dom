@@ -41,14 +41,14 @@
 		"@fal-works/esbuild-plugin-global-externals": "^2.1.2",
 		"@typescript-eslint/eslint-plugin": "^7.7.0",
 		"@typescript-eslint/parser": "^7.7.0",
-		"esbuild": "^0.17.18",
+		"esbuild": "^0.21.0",
 		"eslint": "^8.36.0",
 		"prettier": "^3.2.5",
 		"typedoc": "^0.25.1",
 		"typescript": "^5.4.5"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^1.0.0"
+		"@zenfs/core": "^1.0.3"
 	},
 	"keywords": [
 		"filesystem",
