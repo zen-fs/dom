@@ -40,7 +40,7 @@ export class WebAccessFS extends Async(FileSystem) {
 
 	public async sync(path: string, data: Uint8Array, stats: Stats): Promise<void> {
 		const currentStats = await this.stat(path);
-		if (stats.mtime !== currentStats!.mtime) {
+		if (stats.mtime !== currentStats.mtime) {
 			await this.writeFile(path, data);
 		}
 	}
@@ -73,7 +73,7 @@ export class WebAccessFS extends Async(FileSystem) {
 			const writable = await newFile.createWritable();
 			await writable.write(await oldFile.arrayBuffer());
 
-			writable.close();
+			await writable.close();
 			await this.unlink(oldPath);
 		} catch (ex) {
 			throw convertException(ex as ConvertException, oldPath, 'rename');
@@ -168,11 +168,8 @@ export class WebAccessFS extends Async(FileSystem) {
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
 			throw ErrnoError.With('ENOTDIR', path, 'readdir');
 		}
-		const keys: string[] = [];
-		for await (const key of handle.keys()) {
-			keys.push(key);
-		}
-		return keys;
+
+		return Array.from(handle.keys());
 	}
 
 	protected async getHandle(path: string): Promise<FileSystemHandle> {

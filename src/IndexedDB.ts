@@ -1,6 +1,6 @@
 import type { Backend, Ino, SharedConfig, Store } from '@zenfs/core';
-import { Async, ErrnoError, InMemory, StoreFS, AsyncTransaction } from '@zenfs/core';
-import { convertException, type ConvertException } from './utils.js';
+import { Async, AsyncTransaction, ErrnoError, InMemory, StoreFS } from '@zenfs/core';
+import { convertException } from './utils.js';
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {
 	return new Promise((resolve, reject) => {
@@ -42,8 +42,12 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 		if (this.done) {
 			return;
 		}
+		const { promise, resolve, reject } = Promise.withResolvers<void>();
 		this.done = true;
+		this.tx.oncomplete = () => resolve();
+		this.tx.onerror = () => reject(convertException(this.tx.error!));
 		this.tx.commit();
+		return promise;
 	}
 
 	public async abort(): Promise<void> {
@@ -51,11 +55,11 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 			return;
 		}
 		this.done = true;
-		try {
-			this.tx.abort();
-		} catch (e) {
-			throw convertException(e as ConvertException);
-		}
+		const { promise, resolve, reject } = Promise.withResolvers<void>();
+		this.tx.onabort = () => resolve();
+		this.tx.onerror = () => reject(convertException(this.tx.error!));
+		this.tx.abort();
+		return promise;
 	}
 }
 
