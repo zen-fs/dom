@@ -212,7 +212,7 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 }
 
-export const WebAccess = {
+const _WebAccess = {
 	name: 'WebAccess',
 
 	options: {
@@ -231,3 +231,7 @@ export const WebAccess = {
 		return new WebAccessFS(options.handle);
 	},
 } as const satisfies Backend<WebAccessFS, WebAccessOptions>;
+type _WebAccess = typeof _WebAccess;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface WebAccess extends _WebAccess {}
+export const WebAccess: WebAccess = _WebAccess;

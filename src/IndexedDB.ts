@@ -123,7 +123,7 @@ export interface IndexedDBOptions {
  * A file system that uses the IndexedDB key value file system.
  */
 
-export const IndexedDB = {
+const _IndexedDB = {
 	name: 'IndexedDB',
 
 	options: {
@@ -164,3 +164,7 @@ export const IndexedDB = {
 		return fs;
 	},
 } as const satisfies Backend<StoreFS, IndexedDBOptions>;
+type _IndexedDB = typeof _IndexedDB;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface IndexedDB extends _IndexedDB {}
+export const IndexedDB: IndexedDB = _IndexedDB;

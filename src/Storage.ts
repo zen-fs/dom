@@ -65,7 +65,7 @@ export interface WebStorageOptions {
 /**
  * A synchronous file system backed by a `Storage` (e.g. localStorage).
  */
-export const WebStorage = {
+const _WebStorage = {
 	name: 'WebStorage',
 
 	options: {
@@ -84,3 +84,7 @@ export const WebStorage = {
 		return new StoreFS(new WebStorageStore(storage));
 	},
 } as const satisfies Backend<StoreFS, WebStorageOptions>;
+type _WebStorage = typeof _WebStorage;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface WebStorage extends _WebStorage {}
+export const WebStorage: WebStorage = _WebStorage;
