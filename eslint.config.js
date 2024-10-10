@@ -10,11 +10,4 @@ export default tseslint.config(...shared, {
 			tsconfigRootDir: import.meta.dirname,
 		},
 	},
-	/**
-	 * Temporary
-	 * @todo remove once core ^1.0.4 is published
-	 */
-	rules: {
-		'@typescript-eslint/restrict-plus-operands': 'off',
-	},
 });
