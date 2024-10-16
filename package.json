@@ -31,16 +31,14 @@
 	"scripts": {
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"lint": "tsc -p tsconfig.json --noEmit && eslint src",
-		"build": "npx build --package=@zenfs/core --globalName ZenFS_DOM --entry src/index.ts",
+		"lint": "eslint src",
+		"build": "tsc -p tsconfig.json",
 		"build:docs": "typedoc --out docs --name 'ZenFS DOM' src/index.ts",
 		"test": "echo No tests yet",
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.12.0",
-		"@fal-works/esbuild-plugin-global-externals": "^2.1.2",
-		"esbuild": "^0.21.0",
 		"eslint": "^9.12.0",
 		"globals": "^15.10.0",
 		"prettier": "^3.2.5",

@@ -18,7 +18,7 @@ For more information, see the [API documentation](https://zen-fs.github.io/dom).
 > [!NOTE]
 > The examples are written in ESM.  
 > For CJS, you can `require` the package.  
-> For a browser environment without support for `type=module` in `script` tags, you can add a `script` tag to your HTML pointing to the `browser.min.js` and use the global `ZenFS_DOM` object.
+> If using a browser environment, you can use a `<script>` with `type=module` (you may need to use import maps)
 
 ```js
 import { configure, fs } from '@zenfs/core';
