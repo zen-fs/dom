@@ -54,9 +54,7 @@ function errnoForDOMException(ex: DOMException): keyof typeof Errno {
 	}
 }
 
-/**
- * @internal
- */
+/** @internal */
 export type ConvertException = ErrnoError | DOMException | Error;
 
 /**
