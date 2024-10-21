@@ -1,5 +1,5 @@
 import type { Backend, Ino, SimpleSyncStore, Store } from '@zenfs/core';
-import { ErrnoError, Errno, SimpleTransaction, StoreFS, decode, encode } from '@zenfs/core';
+import { ErrnoError, Errno, SimpleTransaction, StoreFS, decodeRaw, encodeRaw } from '@zenfs/core';
 
 /**
  * A synchronous key-value store backed by Storage.
@@ -9,14 +9,14 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 		return WebStorage.name;
 	}
 
-	public constructor(protected _storage: Storage) {}
+	public constructor(protected storage: Storage) {}
 
 	public clear(): void {
-		this._storage.clear();
+		this.storage.clear();
 	}
 
 	public clearSync(): void {
-		this._storage.clear();
+		this.storage.clear();
 	}
 
 	public async sync(): Promise<void> {}
@@ -27,17 +27,17 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 	}
 
 	public get(key: Ino): Uint8Array | undefined {
-		const data = this._storage.getItem(key.toString());
+		const data = this.storage.getItem(key.toString());
 		if (typeof data != 'string') {
 			return;
 		}
 
-		return encode(data);
+		return encodeRaw(data);
 	}
 
 	public set(key: Ino, data: Uint8Array): void {
 		try {
-			this._storage.setItem(key.toString(), decode(data));
+			this.storage.setItem(key.toString(), decodeRaw(data));
 		} catch (e) {
 			throw new ErrnoError(Errno.ENOSPC, 'Storage is full.');
 		}
@@ -45,7 +45,7 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 
 	public delete(key: Ino): void {
 		try {
-			this._storage.removeItem(key.toString());
+			this.storage.removeItem(key.toString());
 		} catch (e) {
 			throw new ErrnoError(Errno.EIO, 'Unable to delete key ' + key + ': ' + e);
 		}
