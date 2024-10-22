@@ -2,6 +2,10 @@
 	"name": "@zenfs/dom",
 	"version": "1.0.1",
 	"description": "DOM backends for ZenFS",
+	"funding": {
+		"type": "individual",
+		"url": "https://github.com/sponsors/james-pre"
+	},
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"type": "module",
