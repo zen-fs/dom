@@ -11,7 +11,33 @@ on:
 jobs:
     ci:
         name: CI
-        uses: zen-fs/core/.github/workflows/ci.yaml@main
-        permissions:
-            contents: read
-            id-token: write
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Formatting
+              run: npm run format:check
+
+            - name: Linting
+              run: npm run lint
+
+            - name: Build
+              run: npm run build
+
+            - name: Unit tests (common)
+              run: npm run test:common
+
+            - name: Unit tests (IndexedDB)
+              run: npx zenfs-test tests/setup-idb.ts
