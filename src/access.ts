@@ -4,15 +4,6 @@ import { S_IFDIR, S_IFREG } from '@zenfs/core/emulation/constants.js';
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
 import { convertException, type ConvertException } from './utils.js';
 
-declare global {
-	interface FileSystemDirectoryHandle {
-		[Symbol.iterator](): IterableIterator<[string, FileSystemHandle]>;
-		entries(): IterableIterator<[string, FileSystemHandle]>;
-		keys(): IterableIterator<string>;
-		values(): IterableIterator<FileSystemHandle>;
-	}
-}
-
 export interface WebAccessOptions {
 	handle: FileSystemDirectoryHandle;
 }
@@ -169,7 +160,11 @@ export class WebAccessFS extends Async(FileSystem) {
 			throw ErrnoError.With('ENOTDIR', path, 'readdir');
 		}
 
-		return Array.from(handle.keys());
+		const entries = [];
+		for await (const k of handle.keys()) {
+			entries.push(k);
+		}
+		return entries;
 	}
 
 	protected async getHandle(path: string): Promise<FileSystemHandle> {
