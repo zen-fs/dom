@@ -83,7 +83,7 @@ export class IndexedDBStore implements Store {
 	public constructor(protected db: IDBDatabase) {}
 
 	public sync(): Promise<void> {
-		throw new Error('Method not implemented.');
+		throw ErrnoError.With('ENOSYS', undefined, 'IndexedDBStore.sync');
 	}
 
 	public get name(): string {
