@@ -41,3 +41,6 @@ jobs:
 
             - name: Unit tests (WebStorage)
               run: npx zenfs-test tests/setup-storage.ts
+
+            - name: Unit tests (WebAccess)
+              run: npx zenfs-test tests/setup-access.ts
