@@ -41,3 +41,6 @@ jobs:
 
             - name: Unit tests (IndexedDB)
               run: npx zenfs-test tests/setup-idb.ts
+
+            - name: Unit tests (WebStorage)
+              run: npx zenfs-test tests/setup-storage.ts

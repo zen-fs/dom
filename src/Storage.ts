@@ -76,6 +76,9 @@ const _WebStorage = {
 		},
 	},
 
+	/**
+	 * @todo Consider replacing `instanceof` with a duck-typing check?
+	 */
 	isAvailable(storage: Storage = globalThis.localStorage): boolean {
 		return storage instanceof globalThis.Storage;
 	},

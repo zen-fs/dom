@@ -43,7 +43,6 @@
 	"devDependencies": {
 		"@eslint/js": "^9.12.0",
 		"eslint": "^9.12.0",
-		"fake-indexeddb": "^6.0.0",
 		"globals": "^15.10.0",
 		"prettier": "^3.2.5",
 		"typedoc": "^0.26.10",
@@ -52,6 +51,9 @@
 	},
 	"peerDependencies": {
 		"@zenfs/core": "^1.2.0"
+	},
+	"optionalDependencies": {
+		"fake-indexeddb": "^6.0.0"
 	},
 	"keywords": [
 		"filesystem",
