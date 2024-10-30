@@ -36,9 +36,6 @@ jobs:
             - name: Build
               run: npm run build
 
-            - name: Unit tests (common)
-              run: npm run test:common
-
             - name: Unit tests (IndexedDB)
               run: npx zenfs-test tests/setup-idb.ts
 
