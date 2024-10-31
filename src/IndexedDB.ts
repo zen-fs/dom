@@ -26,6 +26,10 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 		this._idb = tx.objectStore(store.name);
 	}
 
+	public async keys(): Promise<Iterable<Ino>> {
+		return (await wrap(this._idb.getAllKeys())).filter(k => typeof k == 'string').map(k => BigInt(k));
+	}
+
 	public get(key: Ino): Promise<Uint8Array> {
 		return wrap(this._idb.get(key.toString()));
 	}

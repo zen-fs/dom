@@ -26,6 +26,10 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 		return new SimpleTransaction(this);
 	}
 
+	public keys(): Iterable<Ino> {
+		return Object.keys(this.storage).map(k => BigInt(k));
+	}
+
 	public get(key: Ino): Uint8Array | undefined {
 		const data = this.storage.getItem(key.toString());
 		if (typeof data != 'string') {
