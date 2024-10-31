@@ -29,46 +29,46 @@ export class WebAccessFS extends Async(FileSystem) {
 		};
 	}
 
-	public async sync(path: string, data: Uint8Array, stats: Stats): Promise<void> {
-		const currentStats = await this.stat(path);
-		if (stats.mtime !== currentStats.mtime) {
-			await this.writeFile(path, data);
-		}
+	public async sync(path: string, data: Uint8Array): Promise<void> {
+		await this.writeFile(path, data);
 	}
 
 	public async rename(oldPath: string, newPath: string): Promise<void> {
-		try {
-			const handle = await this.getHandle(oldPath);
-			if (handle instanceof FileSystemDirectoryHandle) {
-				const files = await this.readdir(oldPath);
+		const handle = await this.getHandle(oldPath);
+		if (handle instanceof FileSystemDirectoryHandle) {
+			const files = await this.readdir(oldPath);
 
-				await this.mkdir(newPath);
-				if (files.length == 0) {
-					await this.unlink(oldPath);
-				} else {
-					for (const file of files) {
-						await this.rename(join(oldPath, file), join(newPath, file));
-						await this.unlink(oldPath);
-					}
-				}
-			}
-			if (!(handle instanceof FileSystemFileHandle)) {
+			await this.mkdir(newPath);
+			if (!files.length) {
+				await this.unlink(oldPath);
 				return;
 			}
-			const oldFile = await handle.getFile(),
-				destFolder = await this.getHandle(dirname(newPath));
-			if (!(destFolder instanceof FileSystemDirectoryHandle)) {
-				return;
-			}
-			const newFile = await destFolder.getFileHandle(basename(newPath), { create: true });
-			const writable = await newFile.createWritable();
-			await writable.write(await oldFile.arrayBuffer());
 
-			await writable.close();
-			await this.unlink(oldPath);
-		} catch (ex) {
-			throw convertException(ex as ConvertException, oldPath, 'rename');
+			for (const file of files) {
+				await this.rename(join(oldPath, file), join(newPath, file));
+				await this.unlink(oldPath);
+			}
+
+			return;
 		}
+		if (!(handle instanceof FileSystemFileHandle)) {
+			throw new ErrnoError(Errno.ENOTSUP, 'Not a file or directory handle', oldPath, 'rename');
+		}
+		const oldFile = await handle.getFile().catch((ex: ConvertException) => {
+				throw convertException(ex, oldPath, 'rename');
+			}),
+			destFolder = await this.getHandle(dirname(newPath));
+		if (!(destFolder instanceof FileSystemDirectoryHandle)) {
+			return;
+		}
+		const newFile = await destFolder.getFileHandle(basename(newPath), { create: true }).catch((ex: ConvertException) => {
+			throw convertException(ex, newPath, 'rename');
+		});
+		const writable = await newFile.createWritable();
+		await writable.write(await oldFile.arrayBuffer());
+
+		await writable.close();
+		await this.unlink(oldPath);
 	}
 
 	public async writeFile(path: string, data: Uint8Array): Promise<void> {
@@ -112,29 +112,27 @@ export class WebAccessFS extends Async(FileSystem) {
 		if (!(handle instanceof FileSystemFileHandle)) {
 			throw ErrnoError.With('EISDIR', path, 'openFile');
 		}
-		try {
-			const file = await handle.getFile();
-			const data = new Uint8Array(await file.arrayBuffer());
-			const stats = new Stats({ mode: 0o777 | S_IFREG, size: file.size, mtimeMs: file.lastModified });
-			return new PreloadFile(this, path, flag, stats, data);
-		} catch (ex) {
-			throw convertException(ex as ConvertException, path, 'openFile');
-		}
+		const file = await handle.getFile().catch((ex: ConvertException) => {
+			throw convertException(ex, path, 'openFile');
+		});
+		const data = new Uint8Array(await file.arrayBuffer());
+		const stats = new Stats({ mode: 0o777 | S_IFREG, size: file.size, mtimeMs: file.lastModified });
+		return new PreloadFile(this, path, flag, stats, data);
 	}
 
 	public async unlink(path: string): Promise<void> {
 		const handle = await this.getHandle(dirname(path));
-		if (handle instanceof FileSystemDirectoryHandle) {
-			try {
-				await handle.removeEntry(basename(path), { recursive: true });
-			} catch (ex) {
-				throw convertException(ex as ConvertException, path, 'unlink');
-			}
+		if (!(handle instanceof FileSystemDirectoryHandle)) {
+			throw ErrnoError.With('ENOTDIR', dirname(path), 'unlink');
 		}
+		await handle.removeEntry(basename(path), { recursive: true }).catch((ex: ConvertException) => {
+			throw convertException(ex, path, 'unlink');
+		});
 	}
 
+	// eslint-disable-next-line @typescript-eslint/require-await
 	public async link(srcpath: string): Promise<void> {
-		throw ErrnoError.With('ENOSYS', srcpath, 'WebAccessFS.link');
+		return;
 	}
 
 	public async rmdir(path: string): Promise<void> {
@@ -142,7 +140,11 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async mkdir(path: string): Promise<void> {
-		const existingHandle = await this.getHandle(path);
+		const existingHandle = await this.getHandle(path).catch((ex: ErrnoError) => {
+			if (ex.code != 'ENOENT') {
+				throw ex;
+			}
+		});
 		if (existingHandle) {
 			throw ErrnoError.With('EEXIST', path, 'mkdir');
 		}
@@ -167,7 +169,7 @@ export class WebAccessFS extends Async(FileSystem) {
 		return entries;
 	}
 
-	protected async getHandle(path: string): Promise<FileSystemHandle> {
+	protected async getHandle(path: string): Promise<FileSystemHandle | undefined> {
 		if (this._handles.has(path)) {
 			return this._handles.get(path)!;
 		}
@@ -181,26 +183,19 @@ export class WebAccessFS extends Async(FileSystem) {
 			}
 			walked = join(walked, part);
 
-			try {
-				const dirHandle = await handle.getDirectoryHandle(part);
-				this._handles.set(walked, dirHandle);
-			} catch (_ex) {
-				const ex = _ex as DOMException;
-				if (ex.name == 'TypeMismatchError') {
-					try {
-						const fileHandle = await handle.getFileHandle(part);
-						this._handles.set(walked, fileHandle);
-					} catch (ex) {
-						convertException(ex as ConvertException, walked, 'getHandle');
-					}
+			const child = await handle.getDirectoryHandle(part).catch((ex: DOMException) => {
+				switch (ex.name) {
+					case 'TypeMismatchError':
+						return handle.getFileHandle(part).catch((ex: ConvertException) => {
+							//throw convertException(ex, walked, 'getHandle');
+						});
+					case 'TypeError':
+						throw new ErrnoError(Errno.ENOENT, ex.message, walked, 'getHandle');
+					default:
+						throw convertException(ex, walked, 'getHandle');
 				}
-
-				if (ex.name === 'TypeError') {
-					throw new ErrnoError(Errno.ENOENT, ex.message, walked, 'getHandle');
-				}
-
-				convertException(ex, walked, 'getHandle');
-			}
+			});
+			if (child) this._handles.set(walked, child);
 		}
 
 		return this._handles.get(path)!;
