@@ -1,24 +1,35 @@
-import type { Backend, FileSystemMetadata } from '@zenfs/core';
-import { Async, Errno, ErrnoError, FileSystem, InMemory, PreloadFile, Stats } from '@zenfs/core';
+import type { Backend, FileSystemMetadata, StatsLike } from '@zenfs/core';
+import { Async, Errno, ErrnoError, FileSystem, InMemory, Inode, PreloadFile, Stats } from '@zenfs/core';
 import { S_IFDIR, S_IFREG } from '@zenfs/core/emulation/constants.js';
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
+import { serialize } from 'utilium';
 import { convertException, type ConvertException } from './utils.js';
 
 export interface WebAccessOptions {
 	handle: FileSystemDirectoryHandle;
 }
 
+const metadataPrefix = '/.zenfs_metadata';
+
 export class WebAccessFS extends Async(FileSystem) {
-	private _handles: Map<string, FileSystemHandle> = new Map();
+	protected _handles: Map<string, FileSystemHandle> = new Map();
+
+	private metadataHandle!: FileSystemDirectoryHandle;
+
+	public async ready(): Promise<void> {
+		await super.ready();
+		// create the metadata directory if it doesn't exist
+		this.metadataHandle = await this.rootHandle.getDirectoryHandle(metadataPrefix.slice(1), { create: true });
+	}
 
 	/**
 	 * @hidden
 	 */
 	_sync: FileSystem = InMemory.create({ name: 'accessfs-cache' });
 
-	public constructor(handle: FileSystemDirectoryHandle) {
+	public constructor(protected rootHandle: FileSystemDirectoryHandle) {
 		super();
-		this._handles.set('/', handle);
+		this._handles.set('/', rootHandle);
 	}
 
 	public metadata(): FileSystemMetadata {
@@ -29,11 +40,63 @@ export class WebAccessFS extends Async(FileSystem) {
 		};
 	}
 
-	public async sync(path: string, data: Uint8Array): Promise<void> {
-		await this.writeFile(path, data);
+	protected async _write(path: string, data: Uint8Array): Promise<void> {
+		if (data.buffer.resizable) {
+			const newData = new Uint8Array(new ArrayBuffer(data.byteLength));
+			newData.set(data);
+			data = newData;
+		}
+
+		const handle = await this.getHandle(dirname(path));
+		if (!(handle instanceof FileSystemDirectoryHandle)) {
+			return;
+		}
+
+		const file = await handle.getFileHandle(basename(path), { create: true });
+		const writable = await file.createWritable();
+		await writable.write(data);
+		await writable.close();
+	}
+
+	protected async _writeMetadata(path: string, metadata: StatsLike): Promise<void> {
+		console.log('write metadata', path);
+		const inode = new Inode();
+		Object.assign(inode, metadata);
+		const md = await this.metadataHandle.getFileHandle(path.replaceAll('/', '\\'), { create: true });
+		console.log('\tgot handle');
+		const writable = await md.createWritable();
+		const data = serialize(inode);
+		console.log(`\twriting metadata (${data.byteLength} bytes)`);
+		await writable.write(data);
+		await writable.close();
+	}
+
+	protected async _getMetadata(path: string): Promise<Inode | undefined> {
+		const md = await this.metadataHandle.getFileHandle(path.replaceAll('/', '\\')).catch(() => {});
+		if (!md) {
+			return;
+		}
+		const buffer = await (await md.getFile()).arrayBuffer();
+		if (buffer.byteLength != 58) {
+			await this._deleteMetadata(path);
+			return;
+		}
+		return new Inode(buffer);
+	}
+
+	protected async _deleteMetadata(path: string): Promise<void> {
+		await this.metadataHandle.removeEntry(path.replaceAll('/', '\\')).catch(() => {});
+	}
+
+	public async sync(path: string, data: Uint8Array, stats: Stats): Promise<void> {
+		await this._writeMetadata(path, stats);
+		await this._write(path, data);
 	}
 
 	public async rename(oldPath: string, newPath: string): Promise<void> {
+		if (oldPath.startsWith(metadataPrefix) || newPath.startsWith(metadataPrefix)) {
+			throw ErrnoError.With('EPERM', metadataPrefix, 'writeFile');
+		}
 		const handle = await this.getHandle(oldPath);
 		if (handle instanceof FileSystemDirectoryHandle) {
 			const files = await this.readdir(oldPath);
@@ -71,28 +134,28 @@ export class WebAccessFS extends Async(FileSystem) {
 		await this.unlink(oldPath);
 	}
 
-	public async writeFile(path: string, data: Uint8Array): Promise<void> {
-		if (data.buffer.resizable) {
-			throw new ErrnoError(Errno.EINVAL, 'Resizable buffers can not be written', path, 'write');
+	public async createFile(path: string, flag: string, mode: number): Promise<PreloadFile<this>> {
+		if (path.startsWith(metadataPrefix)) {
+			throw ErrnoError.With('EPERM', metadataPrefix, 'createFile');
 		}
+		console.trace('createFile', path, flag, mode);
+		await this._writeMetadata(path, new Stats({ mode }));
+		await this._write(path, new Uint8Array());
 
-		const handle = await this.getHandle(dirname(path));
-		if (!(handle instanceof FileSystemDirectoryHandle)) {
-			return;
-		}
-
-		const file = await handle.getFileHandle(basename(path), { create: true });
-		const writable = await file.createWritable();
-		await writable.write(data);
-		await writable.close();
-	}
-
-	public async createFile(path: string, flag: string): Promise<PreloadFile<this>> {
-		await this.writeFile(path, new Uint8Array());
+		this._sync.createFileSync(path, flag, mode);
 		return this.openFile(path, flag);
 	}
 
+	public override statSync(path: string): Stats {
+		const _ = this._sync.statSync(path);
+		console.log('statSync', path, !!_);
+		return _;
+	}
+
 	public async stat(path: string): Promise<Stats> {
+		if (path.startsWith(metadataPrefix)) {
+			throw ErrnoError.With('EPERM', metadataPrefix, 'stat');
+		}
 		const handle = await this.getHandle(path);
 		if (!handle) {
 			throw ErrnoError.With('ENOENT', path, 'stat');
@@ -108,6 +171,9 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async openFile(path: string, flag: string): Promise<PreloadFile<this>> {
+		if (path.startsWith(metadataPrefix)) {
+			throw ErrnoError.With('EPERM', metadataPrefix, 'openFile');
+		}
 		const handle = await this.getHandle(path);
 		if (!(handle instanceof FileSystemFileHandle)) {
 			throw ErrnoError.With('EISDIR', path, 'openFile');
@@ -115,12 +181,17 @@ export class WebAccessFS extends Async(FileSystem) {
 		const file = await handle.getFile().catch((ex: ConvertException) => {
 			throw convertException(ex, path, 'openFile');
 		});
-		const data = new Uint8Array(await file.arrayBuffer());
-		const stats = new Stats({ mode: 0o777 | S_IFREG, size: file.size, mtimeMs: file.lastModified });
-		return new PreloadFile(this, path, flag, stats, data);
+		console.log('openFile', path, flag, !!file);
+		const inode = await this._getMetadata(path);
+		console.log('\tgot metadata');
+		const stats = new Stats(inode || { mode: 0o777 | S_IFREG, size: file.size, mtimeMs: file.lastModified });
+		return new PreloadFile(this, path, flag, stats, new Uint8Array(await file.arrayBuffer()));
 	}
 
 	public async unlink(path: string): Promise<void> {
+		if (path.startsWith(metadataPrefix)) {
+			throw ErrnoError.With('EPERM', metadataPrefix, 'unlink');
+		}
 		const handle = await this.getHandle(dirname(path));
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
 			throw ErrnoError.With('ENOTDIR', dirname(path), 'unlink');
@@ -128,10 +199,11 @@ export class WebAccessFS extends Async(FileSystem) {
 		await handle.removeEntry(basename(path), { recursive: true }).catch((ex: ConvertException) => {
 			throw convertException(ex, path, 'unlink');
 		});
+		await this._deleteMetadata(path);
 	}
 
 	// eslint-disable-next-line @typescript-eslint/require-await
-	public async link(srcpath: string): Promise<void> {
+	public async link(): Promise<void> {
 		return;
 	}
 
@@ -140,6 +212,9 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async mkdir(path: string): Promise<void> {
+		if (path.startsWith(metadataPrefix)) {
+			throw ErrnoError.With('EPERM', metadataPrefix, 'mkdir');
+		}
 		const existingHandle = await this.getHandle(path).catch((ex: ErrnoError) => {
 			if (ex.code != 'ENOENT') {
 				throw ex;
@@ -157,6 +232,9 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async readdir(path: string): Promise<string[]> {
+		if (path.startsWith(metadataPrefix)) {
+			throw ErrnoError.With('EPERM', metadataPrefix, 'readdir');
+		}
 		const handle = await this.getHandle(path);
 		if (!(handle instanceof FileSystemDirectoryHandle)) {
 			throw ErrnoError.With('ENOTDIR', path, 'readdir');
@@ -164,6 +242,7 @@ export class WebAccessFS extends Async(FileSystem) {
 
 		const entries = [];
 		for await (const k of handle.keys()) {
+			if (path == '/' && k == metadataPrefix.slice(1)) continue;
 			entries.push(k);
 		}
 		return entries;

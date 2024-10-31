@@ -2,7 +2,7 @@ import * as fsAccess from 'file-system-access';
 import adapter from 'file-system-access/lib/adapters/memory.js';
 Object.assign(globalThis, fsAccess);
 
-import { configureSingle } from '@zenfs/core';
+import { fs, configureSingle } from '@zenfs/core';
 import { WebAccess } from '../src/access.js';
 import { copy, data } from '@zenfs/core/tests/setup/common.js';
 
@@ -12,3 +12,8 @@ await configureSingle({
 });
 
 copy(data);
+const wfs = fs.mounts.get('/');
+// @ts-expect-error 2339
+await wfs.crossCopy('/');
+// @ts-expect-error 2339
+await wfs.queueDone();
