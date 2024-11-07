@@ -1,7 +1,7 @@
 import type { Backend, FileSystemMetadata, StatsLike } from '@zenfs/core';
 import { Async, Errno, ErrnoError, FileSystem, InMemory, Inode, PreloadFile, Stats } from '@zenfs/core';
 import { S_IFDIR, S_IFREG } from '@zenfs/core/emulation/constants.js';
-import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
+import { basename, dirname, join } from '@zenfs/core/path';
 import { serialize } from 'utilium';
 import { convertException, type ConvertException } from './utils.js';
 
@@ -17,9 +17,9 @@ export class WebAccessFS extends Async(FileSystem) {
 	private metadataHandle!: FileSystemDirectoryHandle;
 
 	public async ready(): Promise<void> {
-		await super.ready();
 		// create the metadata directory if it doesn't exist
 		this.metadataHandle = await this.rootHandle.getDirectoryHandle(metadataPrefix.slice(1), { create: true });
+		await super.ready();
 	}
 
 	/**
@@ -65,6 +65,7 @@ export class WebAccessFS extends Async(FileSystem) {
 		const md = await this.metadataHandle.getFileHandle(path.replaceAll('/', '\\'), { create: true });
 		console.log('\tgot handle');
 		const writable = await md.createWritable();
+		console.log('\tgot writable');
 		const data = serialize(inode);
 		console.log(`\twriting metadata (${data.byteLength} bytes)`);
 		await writable.write(data);
@@ -72,6 +73,7 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	protected async _getMetadata(path: string): Promise<Inode | undefined> {
+		console.log('get metadata', path);
 		const md = await this.metadataHandle.getFileHandle(path.replaceAll('/', '\\')).catch(() => {});
 		if (!md) {
 			return;
@@ -156,16 +158,18 @@ export class WebAccessFS extends Async(FileSystem) {
 		if (path.startsWith(metadataPrefix)) {
 			throw ErrnoError.With('EPERM', metadataPrefix, 'stat');
 		}
+		console.log('stat', path);
 		const handle = await this.getHandle(path);
 		if (!handle) {
 			throw ErrnoError.With('ENOENT', path, 'stat');
 		}
+		const inode = await this._getMetadata(path);
 		if (handle instanceof FileSystemDirectoryHandle) {
-			return new Stats({ mode: 0o777 | S_IFDIR, size: 4096 });
+			return new Stats(inode || { mode: 0o777 | S_IFDIR, size: 4096 });
 		}
 		if (handle instanceof FileSystemFileHandle) {
 			const { lastModified, size } = await handle.getFile();
-			return new Stats({ mode: 0o777 | S_IFREG, size, mtimeMs: lastModified });
+			return new Stats(inode || { mode: 0o777 | S_IFREG, size, mtimeMs: lastModified });
 		}
 		throw new ErrnoError(Errno.EBADE, 'Handle is not a directory or file', path, 'stat');
 	}
@@ -269,9 +273,10 @@ export class WebAccessFS extends Async(FileSystem) {
 							//throw convertException(ex, walked, 'getHandle');
 						});
 					case 'TypeError':
+						console.log('getHandle TypeError');
 						throw new ErrnoError(Errno.ENOENT, ex.message, walked, 'getHandle');
 					default:
-						throw convertException(ex, walked, 'getHandle');
+					//						throw convertException(ex, walked, 'getHandle');
 				}
 			});
 			if (child) this._handles.set(walked, child);

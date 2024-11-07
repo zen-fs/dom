@@ -12,8 +12,10 @@ await configureSingle({
 });
 
 copy(data);
-const wfs = fs.mounts.get('/');
+const wfs = fs.mounts.get('/')!;
 // @ts-expect-error 2339
 await wfs.crossCopy('/');
 // @ts-expect-error 2339
 await wfs.queueDone();
+
+await wfs.ready();
