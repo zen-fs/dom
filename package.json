@@ -11,6 +11,9 @@
 	"type": "module",
 	"homepage": "https://github.com/zen-fs/dom",
 	"author": "James Prevett <jp@jamespre.dev> (https://jamespre.dev)",
+	"contributors": [
+		"David Konsumer <konsumer@jetboystudio.com>"
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",
