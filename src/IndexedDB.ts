@@ -150,11 +150,11 @@ const _IndexedDB = {
 			}
 			const req = idbFactory.open('__zenfs_test');
 			await wrap(req);
-			idbFactory.deleteDatabase('__zenfs_test');
 			return true;
-		} catch (e) {
-			idbFactory.deleteDatabase('__zenfs_test');
+		} catch {
 			return false;
+		} finally {
+			idbFactory.deleteDatabase('__zenfs_test');
 		}
 	},
 
