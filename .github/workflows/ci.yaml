@@ -43,4 +43,4 @@ jobs:
               run: npx zenfs-test tests/setup-storage.ts
 
             - name: Unit tests (WebAccess) - SKIPPED
-              run: #npx zenfs-test tests/setup-access.ts
+              run: echo Skipped #npx zenfs-test tests/setup-access.ts
