@@ -1,4 +1,4 @@
-import type { Backend, Ino, SimpleSyncStore, Store } from '@zenfs/core';
+import type { Backend, SimpleSyncStore, Store } from '@zenfs/core';
 import { ErrnoError, Errno, SimpleTransaction, StoreFS, decodeRaw, encodeRaw } from '@zenfs/core';
 
 /**
@@ -26,11 +26,11 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 		return new SimpleTransaction(this);
 	}
 
-	public keys(): Iterable<Ino> {
+	public keys(): Iterable<bigint> {
 		return Object.keys(this.storage).map(k => BigInt(k));
 	}
 
-	public get(key: Ino): Uint8Array | undefined {
+	public get(key: bigint): Uint8Array | undefined {
 		const data = this.storage.getItem(key.toString());
 		if (typeof data != 'string') {
 			return;
@@ -39,15 +39,15 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 		return encodeRaw(data);
 	}
 
-	public set(key: Ino, data: Uint8Array): void {
+	public set(key: bigint, data: Uint8Array): void {
 		try {
 			this.storage.setItem(key.toString(), decodeRaw(data));
-		} catch (e) {
+		} catch {
 			throw new ErrnoError(Errno.ENOSPC, 'Storage is full.');
 		}
 	}
 
-	public delete(key: Ino): void {
+	public delete(key: bigint): void {
 		try {
 			this.storage.removeItem(key.toString());
 		} catch (e) {

@@ -1,4 +1,4 @@
-import type { Backend, Ino, SharedConfig, Store } from '@zenfs/core';
+import type { Backend, SharedConfig, Store } from '@zenfs/core';
 import { Async, AsyncTransaction, ErrnoError, InMemory, StoreFS } from '@zenfs/core';
 import { convertException } from './utils.js';
 
@@ -26,19 +26,19 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 		this._idb = tx.objectStore(store.name);
 	}
 
-	public async keys(): Promise<Iterable<Ino>> {
+	public async keys(): Promise<Iterable<bigint>> {
 		return (await wrap(this._idb.getAllKeys())).filter(k => typeof k == 'string').map(k => BigInt(k));
 	}
 
-	public get(key: Ino): Promise<Uint8Array> {
+	public get(key: bigint): Promise<Uint8Array> {
 		return wrap(this._idb.get(key.toString()));
 	}
 
-	public async set(key: Ino, data: Uint8Array): Promise<void> {
+	public async set(key: bigint, data: Uint8Array): Promise<void> {
 		await wrap(this._idb.put(data, key.toString()));
 	}
 
-	public remove(key: Ino): Promise<void> {
+	public remove(key: bigint): Promise<void> {
 		return wrap(this._idb.delete(key.toString()));
 	}
 
@@ -134,12 +134,10 @@ const _IndexedDB = {
 		storeName: {
 			type: 'string',
 			required: false,
-			description: 'The name of this file system. You can have multiple IndexedDB file systems operating at once, but each must have a different name.',
 		},
 		idbFactory: {
 			type: 'object',
 			required: false,
-			description: 'The IDBFactory to use. Defaults to globalThis.indexedDB.',
 		},
 	},
 
@@ -158,7 +156,7 @@ const _IndexedDB = {
 		}
 	},
 
-	async create(options: IndexedDBOptions & Partial<SharedConfig>) {
+	async create(options: IndexedDBOptions & Partial<SharedConfig>): Promise<Async & StoreFS<IndexedDBStore>> {
 		const db = await createDB(options.storeName || 'zenfs', options.idbFactory);
 		const store = new IndexedDBStore(db);
 		const fs = new (Async(StoreFS))(store);
@@ -167,7 +165,7 @@ const _IndexedDB = {
 		}
 		return fs;
 	},
-} as const satisfies Backend<StoreFS, IndexedDBOptions>;
+} as const satisfies Backend<Async & StoreFS<IndexedDBStore>, IndexedDBOptions>;
 type _IndexedDB = typeof _IndexedDB;
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface IndexedDB extends _IndexedDB {}
