@@ -1,6 +1,6 @@
 {
 	"name": "@zenfs/dom",
-	"version": "1.0.5",
+	"version": "1.0.4",
 	"description": "DOM backends for ZenFS",
 	"funding": {
 		"type": "individual",
