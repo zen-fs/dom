@@ -206,11 +206,7 @@ const _WebAccess = {
 	name: 'WebAccess',
 
 	options: {
-		handle: {
-			type: 'object',
-			required: true,
-			description: 'The directory handle to use for the root',
-		},
+		handle: { type: 'object', required: true },
 	},
 
 	isAvailable(): boolean {

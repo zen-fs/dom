@@ -73,11 +73,7 @@ const _WebStorage = {
 	name: 'WebStorage',
 
 	options: {
-		storage: {
-			type: 'object',
-			required: false,
-			description: 'The Storage to use. Defaults to globalThis.localStorage.',
-		},
+		storage: { type: 'object', required: false },
 	},
 
 	/**
