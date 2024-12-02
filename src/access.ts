@@ -227,5 +227,5 @@ const _WebAccess = {
 } as const satisfies Backend<WebAccessFS, WebAccessOptions>;
 type _WebAccess = typeof _WebAccess;
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface WebAccess extends _WebAccess {}
+export interface WebAccess extends _WebAccess {}
 export const WebAccess: WebAccess = _WebAccess;

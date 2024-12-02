@@ -55,7 +55,7 @@
 		"typescript-eslint": "^8.8.1"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^1.6.0"
+		"@zenfs/core": "^1.6.4"
 	},
 	"optionalDependencies": {
 		"fake-indexeddb": "^6.0.0",

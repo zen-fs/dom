@@ -11,6 +11,7 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 
 	public constructor(protected storage: Storage) {}
 
+	/* node:coverage ignore next 10 */
 	public clear(): void {
 		this.storage.clear();
 	}
@@ -22,7 +23,6 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 	public async sync(): Promise<void> {}
 
 	public transaction(): SimpleTransaction {
-		// No need to differentiate.
 		return new SimpleTransaction(this);
 	}
 
@@ -89,5 +89,5 @@ const _WebStorage = {
 } as const satisfies Backend<StoreFS, WebStorageOptions>;
 type _WebStorage = typeof _WebStorage;
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface WebStorage extends _WebStorage {}
+export interface WebStorage extends _WebStorage {}
 export const WebStorage: WebStorage = _WebStorage;

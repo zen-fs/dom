@@ -168,5 +168,5 @@ const _IndexedDB = {
 } as const satisfies Backend<AsyncMixin & StoreFS<IndexedDBStore>, IndexedDBOptions>;
 type _IndexedDB = typeof _IndexedDB;
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface IndexedDB extends _IndexedDB {}
+export interface IndexedDB extends _IndexedDB {}
 export const IndexedDB: IndexedDB = _IndexedDB;
