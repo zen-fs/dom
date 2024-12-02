@@ -4,7 +4,7 @@ Object.assign(globalThis, fsAccess);
 
 import { configureSingle } from '@zenfs/core';
 import { WebAccess } from '../src/access.js';
-import { copy, data } from '@zenfs/core/tests/setup/common.js';
+import { copy, data } from '@zenfs/core/tests/setup.js';
 
 await configureSingle({
 	backend: WebAccess,

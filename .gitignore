@@ -4,3 +4,4 @@ docs
 *.log
 tmp
 build
+tests/.coverage

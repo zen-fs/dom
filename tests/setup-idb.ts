@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 
 import { configureSingle } from '@zenfs/core';
 import { IndexedDB } from '../src/IndexedDB.js';
-import { copy, data } from '@zenfs/core/tests/setup/common.js';
+import { copy, data } from '@zenfs/core/tests/setup.js';
 
 await configureSingle({
 	backend: IndexedDB,
