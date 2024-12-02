@@ -90,14 +90,15 @@ export async function dsp(options: DspOptions = {}): Promise<DeviceDriver<AudioW
 
 	return {
 		name: 'dsp',
-		init() {
+		singleton: true,
+		init(ino: bigint, options: DspOptions) {
 			return { data: dsp, major: 14, minor: 3 };
 		},
 		read() {
 			return 0;
 		},
-		write(file: DeviceFile, data: Uint8Array): number {
-			dsp.port.postMessage(data.buffer);
+		write(file: DeviceFile<AudioWorkletNode>, data: Uint8Array): number {
+			file.device.data.port.postMessage(data.buffer);
 			return data.byteLength;
 		},
 	};

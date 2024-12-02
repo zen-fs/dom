@@ -1,4 +1,4 @@
-import type { Backend, SharedConfig, Store } from '@zenfs/core';
+import type { AsyncMixin, Backend, SharedConfig, Store } from '@zenfs/core';
 import { Async, AsyncTransaction, ErrnoError, InMemory, StoreFS } from '@zenfs/core';
 import { convertException } from './utils.js';
 
@@ -156,7 +156,7 @@ const _IndexedDB = {
 		}
 	},
 
-	async create(options: IndexedDBOptions & Partial<SharedConfig>): Promise<Async & StoreFS<IndexedDBStore>> {
+	async create(options: IndexedDBOptions & Partial<SharedConfig>): Promise<AsyncMixin & StoreFS<IndexedDBStore>> {
 		const db = await createDB(options.storeName || 'zenfs', options.idbFactory);
 		const store = new IndexedDBStore(db);
 		const fs = new (Async(StoreFS))(store);
@@ -165,7 +165,7 @@ const _IndexedDB = {
 		}
 		return fs;
 	},
-} as const satisfies Backend<Async & StoreFS<IndexedDBStore>, IndexedDBOptions>;
+} as const satisfies Backend<AsyncMixin & StoreFS<IndexedDBStore>, IndexedDBOptions>;
 type _IndexedDB = typeof _IndexedDB;
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface IndexedDB extends _IndexedDB {}

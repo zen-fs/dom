@@ -50,12 +50,12 @@
 		"globals": "^15.10.0",
 		"prettier": "^3.2.5",
 		"tsx": "^4.19.2",
-		"typedoc": "^0.26.10",
-		"typescript": "^5.5.0",
+		"typedoc": "^0.27.2",
+		"typescript": "^5.7.2",
 		"typescript-eslint": "^8.8.1"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^1.3.0"
+		"@zenfs/core": "^1.6.0"
 	},
 	"optionalDependencies": {
 		"fake-indexeddb": "^6.0.0",

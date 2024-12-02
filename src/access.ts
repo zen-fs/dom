@@ -8,6 +8,14 @@ export interface WebAccessOptions {
 	handle: FileSystemDirectoryHandle;
 }
 
+function isResizable(buffer: ArrayBufferLike): boolean {
+	if (buffer instanceof ArrayBuffer) return buffer.resizable;
+
+	if (buffer instanceof SharedArrayBuffer) return buffer.growable;
+
+	return false;
+}
+
 export class WebAccessFS extends Async(FileSystem) {
 	private _handles: Map<string, FileSystemHandle> = new Map();
 
@@ -72,7 +80,7 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async writeFile(path: string, data: Uint8Array): Promise<void> {
-		if (data.buffer.resizable) {
+		if (isResizable(data.buffer)) {
 			throw new ErrnoError(Errno.EINVAL, 'Resizable buffers can not be written', path, 'write');
 		}
 
