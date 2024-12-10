@@ -2,8 +2,7 @@
 
 [ZenFS](https://github.com/zen-fs/core) backends for DOM APIs. DOM APIs are _only_ available natively in browsers.
 
-> [!IMPORTANT]
-> Please read the ZenFS core documentation!
+Please read the ZenFS core documentation!
 
 ## Backends
 
@@ -15,10 +14,7 @@ For more information, see the [API documentation](https://zen-fs.github.io/dom).
 
 ## Usage
 
-> [!NOTE]
-> The examples are written in ESM.  
-> For CJS, you can `require` the package.  
-> If using a browser environment, you can use a `<script>` with `type=module` (you may need to use import maps)
+You can use the backends from `@zenfs/dom` just like the backends from `@zenfs/core`:
 
 ```js
 import { configure, fs } from '@zenfs/core';
@@ -33,3 +29,42 @@ if (!fs.existsSync('/test.txt')) {
 const contents = fs.readFileSync('/test.txt', 'utf-8');
 console.log(contents);
 ```
+
+#### `XML`
+
+The `XML` backend can be used to create a file system which lives in the DOM:
+
+```html
+<!-- ... -->
+<fs />
+<!-- ... -->
+```
+
+```js
+import { configure, fs } from '@zenfs/core';
+import { XML } from '@zenfs/dom';
+
+await configureSingle({
+	backend: XML,
+	root: document.querySelector('fs'), // root is optional
+});
+
+fs.writeFileSync('/test.txt', 'This is in the DOM!');
+```
+
+If you choose to add the root element to the DOM by appending it, you will likely want to hide its contents (`display:none` works well).
+
+The `root` option is not required. If you choose not to pass in a `root`, you can always append it to the DOM later:
+
+```js
+import { configure, fs, mounts } from '@zenfs/core';
+import { XML } from '@zenfs/dom';
+
+await configureSingle({ backend: XML });
+
+const { root } = mounts.get('/');
+
+document.body.append(root);
+```
+
+This may disrupt use cases that involve saving the HTML file locally and loading it later, since a new element is created when configuring. In contrast, when using an existing element and passing in a `root`, the existing element's contents will be preserved.
