@@ -1,6 +1,7 @@
 import type { Backend, File, StatsLike } from '@zenfs/core';
 import { decodeRaw, encodeRaw, Errno, ErrnoError, FileSystem, PreloadFile, Stats, Sync } from '@zenfs/core';
 import { S_IFDIR, S_IFREG } from '@zenfs/core/emulation/constants.js';
+import { basename, dirname } from '@zenfs/core/path';
 
 export interface XMLOptions {
 	parent?: Node;
@@ -25,56 +26,39 @@ function set_stats(node: Element, stats: Partial<StatsLike<number>>): void {
 	}
 }
 
-function get_paths(node: Element): string[] {
+function get_paths(node: Element, contents: boolean = false): string[] {
 	let paths: string[];
 	try {
-		paths = JSON.parse(node.getAttribute('paths')!) as string[];
+		const raw = contents ? node.textContent : node.getAttribute('paths');
+		paths = JSON.parse(raw || '[]') as string[];
 	} catch {
 		paths = [];
 	}
 	return paths;
 }
 
-function add_path(node: Element, path: string): void {
-	const paths = get_paths(node);
-	paths.push(path);
-	node.setAttribute('paths', JSON.stringify(paths));
-}
-
-function remove_path(node: Element, path: string): void {
-	const paths = get_paths(node);
-
-	const i = paths.indexOf(path);
-	if (i == -1) return;
-	paths.splice(i, 1);
-
-	if (!paths.length) {
-		node.remove();
-	} else {
-		node.setAttribute('paths', JSON.stringify(paths));
-	}
-}
-
 export class XMLFS extends Sync(FileSystem) {
 	protected document = new DOMParser().parseFromString('<fs></fs>', 'application/xml');
+
+	protected root = this.document.documentElement;
 
 	public constructor(public readonly parent?: Node) {
 		super();
 
 		try {
-			this.create('[[init]]', '/', { mode: 0o777 | S_IFDIR });
+			this.mkdirSync('/', 0o777);
 		} catch (e: any) {
 			const error = e as ErrnoError;
 			if (error.code != 'EEXIST') throw error;
 		}
 
-		if (parent) parent.appendChild(this.document.documentElement);
+		if (parent) parent.appendChild(this.root);
 	}
 
 	public renameSync(oldPath: string, newPath: string): void {
 		const node = this.get('rename', oldPath);
-		remove_path(node, oldPath);
-		add_path(node, newPath);
+		this.remove('rename', node, oldPath);
+		this.add('rename', node, newPath);
 	}
 
 	public statSync(path: string): Stats {
@@ -95,14 +79,14 @@ export class XMLFS extends Sync(FileSystem) {
 	public unlinkSync(path: string): void {
 		const node = this.get('unlink', path);
 		if (get_stats(node).isDirectory()) throw ErrnoError.With('EISDIR', path, 'unlink');
-		remove_path(node, path);
+		this.remove('unlink', node, path);
 	}
 
 	public rmdirSync(path: string): void {
 		const node = this.get('rmdir', path);
 		if (node.textContent?.length) throw ErrnoError.With('ENOTEMPTY', path, 'rmdir');
 		if (!get_stats(node).isDirectory()) throw ErrnoError.With('ENOTDIR', path, 'rmdir');
-		remove_path(node, path);
+		this.remove('rmdir', node, path);
 	}
 
 	public mkdirSync(path: string, mode: number): void {
@@ -122,7 +106,7 @@ export class XMLFS extends Sync(FileSystem) {
 
 	public linkSync(target: string, link: string): void {
 		const node = this.get('link', target);
-		add_path(node, link);
+		this.add('link', node, link);
 	}
 
 	public syncSync(path: string, data: Uint8Array, stats: Readonly<Stats>): void {
@@ -136,9 +120,10 @@ export class XMLFS extends Sync(FileSystem) {
 	}
 
 	protected get(syscall: string, path: string): Element {
-		const { children } = this.document.documentElement;
-		for (let i = 0; i < children.length; i++) {
-			if (get_paths(children[i]).includes(path)) return children[i];
+		const nodes = this.root.children;
+		if (!nodes) throw ErrnoError.With('EIO', path, syscall);
+		for (let i = 0; i < nodes.length; i++) {
+			if (get_paths(nodes[i]).includes(path)) return nodes[i];
 		}
 		throw ErrnoError.With('ENOENT', path, syscall);
 	}
@@ -146,10 +131,49 @@ export class XMLFS extends Sync(FileSystem) {
 	protected create(syscall: string, path: string, stats: Partial<StatsLike<number>> = {}): Element {
 		if (this.existsSync(path)) throw ErrnoError.With('EEXIST', path, syscall);
 		const node = this.document.createElement('file');
-		node.setAttribute('paths', JSON.stringify([path]));
-		set_stats(node, stats);
-		this.document.documentElement.append(node);
+		this.add(syscall, node, path);
+		set_stats(node, new Stats(stats));
+		this.root.append(node);
 		return node;
+	}
+
+	protected add(syscall: string, node: Element, path: string, contents: boolean = false): void {
+		const paths = get_paths(node, contents);
+		paths.push(path);
+		if (contents) {
+			node.textContent = JSON.stringify(paths);
+			return;
+		}
+		node.setAttribute('paths', JSON.stringify(paths));
+		if (path != '/') {
+			const parent = this.get(syscall, dirname(path));
+			this.add(syscall, parent, basename(path), true);
+		}
+	}
+
+	protected remove(syscall: string, node: Element, path: string, contents: boolean = false): void {
+		const paths = get_paths(node, contents);
+
+		const i = paths.indexOf(path);
+		if (i == -1) return;
+		paths.splice(i, 1);
+
+		if (contents) {
+			node.textContent = JSON.stringify(paths);
+			return;
+		}
+
+		if (!paths.length) {
+			node.remove();
+		} else {
+			node.setAttribute('paths', JSON.stringify(paths));
+			node.setAttribute('nlink', paths.length.toString(16));
+		}
+
+		if (path != '/') {
+			const parent = this.get(syscall, dirname(path));
+			this.remove(syscall, parent, basename(path), true);
+		}
 	}
 }
 
