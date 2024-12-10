@@ -116,7 +116,7 @@ export class XMLFS extends Sync(FileSystem) {
 	}
 
 	public toString(): string {
-		return new XMLSerializer().serializeToString(this.document);
+		return new XMLSerializer().serializeToString(this.root);
 	}
 
 	protected get(syscall: string, path: string): Element {
