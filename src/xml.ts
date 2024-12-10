@@ -78,7 +78,7 @@ export class XMLFS extends Sync(FileSystem) {
 	}
 
 	public statSync(path: string): Stats {
-		return get_stats(this.get(path, 'stat'));
+		return get_stats(this.get('stat', path));
 	}
 
 	public openFileSync(path: string, flag: string): File {
@@ -106,7 +106,8 @@ export class XMLFS extends Sync(FileSystem) {
 	}
 
 	public mkdirSync(path: string, mode: number): void {
-		this.create('mkdir', path, { mode: mode | S_IFDIR });
+		const node = this.create('mkdir', path, { mode: mode | S_IFDIR });
+		node.textContent = '[]';
 	}
 
 	public readdirSync(path: string): string[] {
@@ -147,7 +148,7 @@ export class XMLFS extends Sync(FileSystem) {
 		const node = this.document.createElement('file');
 		node.setAttribute('paths', JSON.stringify([path]));
 		set_stats(node, stats);
-		this.document.append(node);
+		this.document.documentElement.append(node);
 		return node;
 	}
 }
