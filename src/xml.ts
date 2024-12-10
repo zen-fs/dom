@@ -4,7 +4,10 @@ import { S_IFDIR, S_IFREG } from '@zenfs/core/emulation/constants.js';
 import { basename, dirname } from '@zenfs/core/path';
 
 export interface XMLOptions {
-	parent?: Node;
+	/**
+	 * The root `fs` element
+	 */
+	root?: Element;
 }
 
 const statsLikeKeys = ['size', 'mode', 'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs', 'uid', 'gid', 'ino', 'nlink'] as const;
@@ -38,11 +41,12 @@ function get_paths(node: Element, contents: boolean = false): string[] {
 }
 
 export class XMLFS extends Sync(FileSystem) {
-	protected document = new DOMParser().parseFromString('<fs></fs>', 'application/xml');
-
-	protected root = this.document.documentElement;
-
-	public constructor(public readonly parent?: Node) {
+	public constructor(
+		/**
+		 * @inheritdoc XMLOptions.root
+		 */
+		public readonly root: Element = new DOMParser().parseFromString('<fs></fs>', 'application/xml').documentElement
+	) {
 		super();
 
 		try {
@@ -51,8 +55,6 @@ export class XMLFS extends Sync(FileSystem) {
 			const error = e as ErrnoError;
 			if (error.code != 'EEXIST') throw error;
 		}
-
-		if (parent) parent.appendChild(this.root);
 	}
 
 	public renameSync(oldPath: string, newPath: string): void {
@@ -130,7 +132,7 @@ export class XMLFS extends Sync(FileSystem) {
 
 	protected create(syscall: string, path: string, stats: Partial<StatsLike<number>> = {}): Element {
 		if (this.existsSync(path)) throw ErrnoError.With('EEXIST', path, syscall);
-		const node = this.document.createElement('file');
+		const node = document.createElement('file');
 		this.add(syscall, node, path);
 		set_stats(node, new Stats(stats));
 		this.root.append(node);
@@ -145,6 +147,7 @@ export class XMLFS extends Sync(FileSystem) {
 			return;
 		}
 		node.setAttribute('paths', JSON.stringify(paths));
+		node.setAttribute('nlink', paths.length.toString(16));
 		if (path != '/') {
 			const parent = this.get(syscall, dirname(path));
 			this.add(syscall, parent, basename(path), true);
@@ -180,13 +183,13 @@ export class XMLFS extends Sync(FileSystem) {
 const _XML = {
 	name: 'XML',
 	options: {
-		parent: { type: 'object', required: false },
+		root: { type: 'object', required: false },
 	},
 	isAvailable(): boolean {
 		return true;
 	},
 	create(options: XMLOptions) {
-		return new XMLFS(options.parent);
+		return new XMLFS(options.root);
 	},
 } satisfies Backend<XMLFS, XMLOptions>;
 
