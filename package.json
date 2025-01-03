@@ -47,6 +47,8 @@
 	"devDependencies": {
 		"@eslint/js": "^9.12.0",
 		"eslint": "^9.12.0",
+		"fake-indexeddb": "^6.0.0",
+		"file-system-access": "^1.0.4",
 		"globals": "^15.10.0",
 		"prettier": "^3.2.5",
 		"tsx": "^4.19.2",
@@ -56,10 +58,6 @@
 	},
 	"peerDependencies": {
 		"@zenfs/core": "^1.6.4"
-	},
-	"optionalDependencies": {
-		"fake-indexeddb": "^6.0.0",
-		"file-system-access": "^1.0.4"
 	},
 	"keywords": [
 		"filesystem",
