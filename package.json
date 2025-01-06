@@ -19,6 +19,10 @@
 		"type": "git",
 		"url": "git+https://github.com/zen-fs/dom.git"
 	},
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
 	"bugs": {
 		"url": "https://github.com/zen-fs/dom/issues"
 	},
