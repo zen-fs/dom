@@ -1,7 +1,7 @@
 import type { Backend, File, StatsLike } from '@zenfs/core';
 import { decodeRaw, encodeRaw, Errno, ErrnoError, FileSystem, PreloadFile, Stats, Sync } from '@zenfs/core';
 import { S_IFDIR, S_IFREG } from '@zenfs/core/emulation/constants.js';
-import { basename, dirname } from '@zenfs/core/path';
+import { basename, dirname } from '@zenfs/core/emulation/path.js';
 
 export interface XMLOptions {
 	/**
