@@ -1,7 +1,6 @@
 import type { Backend, CreationOptions, File, FileSystemMetadata, StatsLike } from '@zenfs/core';
-import { decodeRaw, encodeRaw, Errno, ErrnoError, FileSystem, PreloadFile, Stats, Sync } from '@zenfs/core';
-import { S_IFDIR, S_IFREG, S_ISGID, S_ISUID } from '@zenfs/core/emulation/constants.js';
-import { basename, dirname } from '@zenfs/core/emulation/path.js';
+import { constants, decodeRaw, encodeRaw, Errno, ErrnoError, FileSystem, PreloadFile, Stats, Sync } from '@zenfs/core';
+import { basename, dirname } from '@zenfs/core/vfs/path.js';
 
 export interface XMLOptions {
 	/**
@@ -79,9 +78,9 @@ export class XMLFS extends Sync(FileSystem) {
 	public createFileSync(path: string, flag: string, mode: number, { uid, gid }: CreationOptions): File {
 		const parent = this.statSync(dirname(path));
 		const stats = new Stats({
-			mode: mode | S_IFREG,
-			uid: parent.mode & S_ISUID ? parent.uid : uid,
-			gid: parent.mode & S_ISGID ? parent.gid : gid,
+			mode: mode | constants.S_IFREG,
+			uid: parent.mode & constants.S_ISUID ? parent.uid : uid,
+			gid: parent.mode & constants.S_ISGID ? parent.gid : gid,
 		});
 		this.create('createFile', path, stats);
 		return new PreloadFile(this, path, flag, stats);
@@ -103,9 +102,9 @@ export class XMLFS extends Sync(FileSystem) {
 	public mkdirSync(path: string, mode: number, { uid, gid }: CreationOptions): void {
 		const parent = this.statSync(dirname(path));
 		const node = this.create('mkdir', path, {
-			mode: mode | S_IFDIR,
-			uid: parent.mode & S_ISUID ? parent.uid : uid,
-			gid: parent.mode & S_ISGID ? parent.gid : gid,
+			mode: mode | constants.S_IFDIR,
+			uid: parent.mode & constants.S_ISUID ? parent.uid : uid,
+			gid: parent.mode & constants.S_ISGID ? parent.gid : gid,
 		});
 		node.textContent = '[]';
 	}
