@@ -15,6 +15,15 @@ function isResizable(buffer: ArrayBufferLike): boolean {
 	return false;
 }
 
+type HKindToType<T extends FileSystemHandleKind> = T extends 'directory' ? FileSystemDirectoryHandle : T extends 'file' ? FileSystemFileHandle : FileSystemHandle;
+
+/**
+ * Since `FileSystemHandle.kind` doesn't have correct type support
+ */
+function isKind<const T extends FileSystemHandleKind>(handle: FileSystemHandle, kind: T): handle is HKindToType<T> {
+	return handle.kind == kind;
+}
+
 export class WebAccessFS extends Async(FileSystem) {
 	private _handles: Map<string, FileSystemHandle> = new Map();
 
@@ -44,7 +53,7 @@ export class WebAccessFS extends Async(FileSystem) {
 
 	public async rename(oldPath: string, newPath: string): Promise<void> {
 		const handle = await this.getHandle(oldPath, 'rename');
-		if (handle instanceof FileSystemDirectoryHandle) {
+		if (isKind(handle, 'directory')) {
 			const files = await this.readdir(oldPath);
 
 			await this.mkdir(newPath);
@@ -60,16 +69,16 @@ export class WebAccessFS extends Async(FileSystem) {
 
 			return;
 		}
-		if (!(handle instanceof FileSystemFileHandle)) {
+		if (!isKind(handle, 'file')) {
 			throw new ErrnoError(Errno.ENOTSUP, 'Not a file or directory handle', oldPath, 'rename');
 		}
 		const oldFile = await handle.getFile().catch((ex: ConvertException) => {
-				throw convertException(ex, oldPath, 'rename');
-			}),
-			destFolder = await this.getHandle(dirname(newPath), 'rename');
-		if (!(destFolder instanceof FileSystemDirectoryHandle)) {
-			return;
-		}
+			throw convertException(ex, oldPath, 'rename');
+		});
+		const destFolder = await this.getHandle(dirname(newPath), 'rename');
+
+		if (!isKind(destFolder, 'directory')) throw ErrnoError.With('ENOTDIR', dirname(newPath), 'rename');
+
 		const newFile = await destFolder.getFileHandle(basename(newPath), { create: true }).catch((ex: ConvertException) => {
 			throw convertException(ex, newPath, 'rename');
 		});
@@ -86,9 +95,8 @@ export class WebAccessFS extends Async(FileSystem) {
 		}
 
 		const handle = await this.getHandle(dirname(path), 'writeFile');
-		if (!(handle instanceof FileSystemDirectoryHandle)) {
-			return;
-		}
+
+		if (!isKind(handle, 'directory')) throw ErrnoError.With('ENOTDIR', dirname(path), 'writeFile');
 
 		const file = await handle.getFileHandle(basename(path), { create: true });
 		const writable = await file.createWritable();
@@ -103,13 +111,11 @@ export class WebAccessFS extends Async(FileSystem) {
 
 	public async stat(path: string): Promise<Stats> {
 		const handle = await this.getHandle(path, 'stat');
-		if (!handle) {
-			throw ErrnoError.With('ENOENT', path, 'stat');
-		}
-		if (handle instanceof FileSystemDirectoryHandle) {
+
+		if (isKind(handle, 'directory')) {
 			return new Stats({ mode: 0o777 | constants.S_IFDIR, size: 4096 });
 		}
-		if (handle instanceof FileSystemFileHandle) {
+		if (isKind(handle, 'file')) {
 			const { lastModified, size } = await handle.getFile();
 			return new Stats({ mode: 0o777 | constants.S_IFREG, size, mtimeMs: lastModified });
 		}
@@ -118,9 +124,9 @@ export class WebAccessFS extends Async(FileSystem) {
 
 	public async openFile(path: string, flag: string): Promise<PreloadFile<this>> {
 		const handle = await this.getHandle(path, 'openFile');
-		if (!(handle instanceof FileSystemFileHandle)) {
-			throw ErrnoError.With('EISDIR', path, 'openFile');
-		}
+
+		if (!isKind(handle, 'file')) throw ErrnoError.With('EISDIR', path, 'openFile');
+
 		const file = await handle.getFile().catch((ex: ConvertException) => {
 			throw convertException(ex, path, 'openFile');
 		});
@@ -131,7 +137,7 @@ export class WebAccessFS extends Async(FileSystem) {
 
 	public async unlink(path: string): Promise<void> {
 		const handle = await this.getHandle(dirname(path), 'unlink');
-		if (!(handle instanceof FileSystemDirectoryHandle)) {
+		if (!isKind(handle, 'directory')) {
 			throw ErrnoError.With('ENOTDIR', dirname(path), 'unlink');
 		}
 		await handle.removeEntry(basename(path), { recursive: true }).catch((ex: ConvertException) => {
@@ -149,17 +155,12 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async mkdir(path: string, mode?: number, options?: CreationOptions): Promise<void> {
-		const existingHandle = await this.getHandle(path, 'mkdir').catch((ex: ErrnoError) => {
-			if (ex.code != 'ENOENT') {
-				throw ex;
-			}
-		});
-		if (existingHandle) {
+		if (await this.exists(path)) {
 			throw ErrnoError.With('EEXIST', path, 'mkdir');
 		}
 
 		const handle = await this.getHandle(dirname(path), 'mkdir');
-		if (!(handle instanceof FileSystemDirectoryHandle)) {
+		if (!isKind(handle, 'directory')) {
 			throw ErrnoError.With('ENOTDIR', path, 'mkdir');
 		}
 		await handle.getDirectoryHandle(basename(path), { create: true });
@@ -167,7 +168,7 @@ export class WebAccessFS extends Async(FileSystem) {
 
 	public async readdir(path: string): Promise<string[]> {
 		const handle = await this.getHandle(path, 'readdir');
-		if (!(handle instanceof FileSystemDirectoryHandle)) {
+		if (!isKind(handle, 'directory')) {
 			throw ErrnoError.With('ENOTDIR', path, 'readdir');
 		}
 
@@ -178,7 +179,7 @@ export class WebAccessFS extends Async(FileSystem) {
 		return entries;
 	}
 
-	protected async getHandle(path: string, syscall: string): Promise<FileSystemHandle | undefined> {
+	protected async getHandle(path: string, syscall: string): Promise<FileSystemHandle> {
 		if (this._handles.has(path)) {
 			return this._handles.get(path)!;
 		}
@@ -187,24 +188,29 @@ export class WebAccessFS extends Async(FileSystem) {
 
 		for (const part of path.split('/').slice(1)) {
 			const handle = this._handles.get(walked);
-			if (!(handle instanceof FileSystemDirectoryHandle)) {
-				throw ErrnoError.With('ENOTDIR', walked, syscall);
-			}
+			if (!handle) throw ErrnoError.With('ENOENT', walked, syscall);
+			if (!isKind(handle, 'directory')) throw ErrnoError.With('ENOTDIR', walked, syscall);
 			walked = join(walked, part);
 
-			const child = await handle.getDirectoryHandle(part).catch((ex: DOMException) => {
+			try {
+				const child = await handle.getDirectoryHandle(part);
+				this._handles.set(walked, child);
+			} catch (_ex: unknown) {
+				const ex = _ex as DOMException;
+
 				switch (ex.name) {
 					case 'TypeMismatchError':
-						return handle.getFileHandle(part).catch((ex: ConvertException) => {
-							//throw convertException(ex, walked, syscall);
-						});
+						try {
+							return await handle.getFileHandle(part);
+						} catch (ex: any) {
+							throw convertException(ex, walked, syscall);
+						}
 					case 'TypeError':
 						throw new ErrnoError(Errno.ENOENT, ex.message, walked, syscall);
 					default:
 						throw convertException(ex, walked, syscall);
 				}
-			});
-			if (child) this._handles.set(walked, child);
+			}
 		}
 
 		return this._handles.get(path)!;
