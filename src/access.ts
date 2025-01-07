@@ -1,4 +1,4 @@
-import type { Backend, FileSystemMetadata } from '@zenfs/core';
+import type { Backend, CreationOptions, FileSystemMetadata } from '@zenfs/core';
 import { Async, Errno, ErrnoError, FileSystem, InMemory, PreloadFile, Stats } from '@zenfs/core';
 import { S_IFDIR, S_IFREG } from '@zenfs/core/emulation/constants.js';
 import { basename, dirname, join } from '@zenfs/core/emulation/path.js';
@@ -34,6 +34,8 @@ export class WebAccessFS extends Async(FileSystem) {
 			...super.metadata(),
 			name: 'WebAccess',
 			noResizableBuffers: true,
+			// Not really, but we don't support opening directories so this prevent the VFS from trying
+			features: ['setid'],
 		};
 	}
 
@@ -147,7 +149,7 @@ export class WebAccessFS extends Async(FileSystem) {
 		return this.unlink(path);
 	}
 
-	public async mkdir(path: string): Promise<void> {
+	public async mkdir(path: string, mode?: number, options?: CreationOptions): Promise<void> {
 		const existingHandle = await this.getHandle(path).catch((ex: ErrnoError) => {
 			if (ex.code != 'ENOENT') {
 				throw ex;

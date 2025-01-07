@@ -1,6 +1,6 @@
-import type { Backend, File, StatsLike } from '@zenfs/core';
+import type { Backend, CreationOptions, File, FileSystemMetadata, StatsLike } from '@zenfs/core';
 import { decodeRaw, encodeRaw, Errno, ErrnoError, FileSystem, PreloadFile, Stats, Sync } from '@zenfs/core';
-import { S_IFDIR, S_IFREG } from '@zenfs/core/emulation/constants.js';
+import { S_IFDIR, S_IFREG, S_ISGID, S_ISUID } from '@zenfs/core/emulation/constants.js';
 import { basename, dirname } from '@zenfs/core/emulation/path.js';
 
 export interface XMLOptions {
@@ -50,11 +50,15 @@ export class XMLFS extends Sync(FileSystem) {
 		super();
 
 		try {
-			this.mkdirSync('/', 0o777);
+			this.mkdirSync('/', 0o777, { uid: 0, gid: 0 });
 		} catch (e: any) {
 			const error = e as ErrnoError;
 			if (error.code != 'EEXIST') throw error;
 		}
+	}
+
+	public metadata(): FileSystemMetadata {
+		return { ...super.metadata(), features: ['setid'] };
 	}
 
 	public renameSync(oldPath: string, newPath: string): void {
@@ -72,8 +76,13 @@ export class XMLFS extends Sync(FileSystem) {
 		return new PreloadFile(this, path, flag, get_stats(node), encodeRaw(node.textContent!));
 	}
 
-	public createFileSync(path: string, flag: string, mode: number): File {
-		const stats = new Stats({ mode: mode | S_IFREG });
+	public createFileSync(path: string, flag: string, mode: number, { uid, gid }: CreationOptions): File {
+		const parent = this.statSync(dirname(path));
+		const stats = new Stats({
+			mode: mode | S_IFREG,
+			uid: parent.mode & S_ISUID ? parent.uid : uid,
+			gid: parent.mode & S_ISGID ? parent.gid : gid,
+		});
 		this.create('createFile', path, stats);
 		return new PreloadFile(this, path, flag, stats);
 	}
@@ -91,8 +100,13 @@ export class XMLFS extends Sync(FileSystem) {
 		this.remove('rmdir', node, path);
 	}
 
-	public mkdirSync(path: string, mode: number): void {
-		const node = this.create('mkdir', path, { mode: mode | S_IFDIR });
+	public mkdirSync(path: string, mode: number, { uid, gid }: CreationOptions): void {
+		const parent = this.statSync(dirname(path));
+		const node = this.create('mkdir', path, {
+			mode: mode | S_IFDIR,
+			uid: parent.mode & S_ISUID ? parent.uid : uid,
+			gid: parent.mode & S_ISGID ? parent.gid : gid,
+		});
 		node.textContent = '[]';
 	}
 
@@ -130,11 +144,17 @@ export class XMLFS extends Sync(FileSystem) {
 		throw ErrnoError.With('ENOENT', path, syscall);
 	}
 
-	protected create(syscall: string, path: string, stats: Partial<StatsLike<number>> = {}): Element {
+	protected create(syscall: string, path: string, stats: Partial<StatsLike<number>> & Pick<StatsLike, 'mode'>): Element {
 		if (this.existsSync(path)) throw ErrnoError.With('EEXIST', path, syscall);
 		const node = document.createElement('file');
 		this.add(syscall, node, path);
-		set_stats(node, new Stats(stats));
+		set_stats(
+			node,
+			new Stats({
+				...stats,
+				uid: stats.mode,
+			})
+		);
 		this.root.append(node);
 		return node;
 	}
