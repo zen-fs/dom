@@ -15,7 +15,11 @@ function isResizable(buffer: ArrayBufferLike): boolean {
 	return false;
 }
 
-type HKindToType<T extends FileSystemHandleKind> = T extends 'directory' ? FileSystemDirectoryHandle : T extends 'file' ? FileSystemFileHandle : FileSystemHandle;
+type HKindToType<T extends FileSystemHandleKind> = T extends 'directory'
+	? FileSystemDirectoryHandle
+	: T extends 'file'
+		? FileSystemFileHandle
+		: FileSystemHandle;
 
 /**
  * Since `FileSystemHandle.kind` doesn't have correct type support

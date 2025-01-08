@@ -3,17 +3,6 @@ Ponyfill of the File System Access web API.
 This is a re-write of `file-system-access` by Alexandru Ciucă (@use-strict)
 */
 
-const errorMessages = {
-	NotFoundError: 'A requested file or directory could not be found at the time an operation was processed.',
-	SyntaxError: 'Failed to write to underlying sink: Invalid params passed: ',
-};
-
-type ErrorName = keyof typeof errorMessages;
-
-function error(name: ErrorName): DOMException {
-	return new DOMException(errorMessages[name], name);
-}
-
 function isCommand<const T extends WriteCommandType = WriteCommandType>(chunk: unknown, type: T): chunk is WriteParams & { type: T } {
 	return typeof chunk === 'object' && chunk != null && 'type' in chunk && chunk.type == type;
 }
@@ -30,19 +19,18 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 	}
 
 	async write(chunk: FileSystemWriteChunkType) {
-		if (!this.handle.file) throw error('NotFoundError');
+		if (!this.handle.file) throw new DOMException('', 'NotFoundError');
 
 		if (isCommand(chunk, 'seek')) {
-			if (!Number.isInteger(chunk.position) || chunk.position! < 0) throw new DOMException(errorMessages.SyntaxError + 'seek requires a position argument', 'SyntaxError');
-			if (this.file.size < chunk.position!) {
-				throw new DOMException('seeking position failed.', 'InvalidStateError');
-			}
+			if (!Number.isInteger(chunk.position) || chunk.position! < 0) throw new DOMException('', 'SyntaxError');
+			if (this.file.size < chunk.position!) throw new DOMException('seeking position failed.', 'InvalidStateError');
+
 			this.position = chunk.position!;
 			return;
 		}
 
 		if (isCommand(chunk, 'truncate')) {
-			if (!Number.isInteger(chunk.size) || chunk.size! < 0) throw new DOMException(errorMessages.SyntaxError + 'truncate requires a size argument', 'SyntaxError');
+			if (!Number.isInteger(chunk.size) || chunk.size! < 0) throw new DOMException('', 'SyntaxError');
 			const parts = [chunk.size! < this.file.size ? this.file.slice(0, chunk.size!) : this.file, new Uint8Array(chunk.size! - this.file.size)];
 			this.file = new File(parts, this.file.name, this.file);
 			if (this.position > this.file.size) this.position = this.file.size;
@@ -57,7 +45,7 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 				}
 			}
 			if (!('data' in chunk)) {
-				throw new DOMException(errorMessages.SyntaxError + 'write requires a data argument', 'SyntaxError');
+				throw new DOMException('', 'SyntaxError');
 			}
 			chunk = chunk.data!;
 		}
@@ -77,7 +65,7 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 	}
 
 	async close() {
-		if (!this.handle.file) throw error('NotFoundError');
+		if (!this.handle.file) throw new DOMException('', 'NotFoundError');
 		this.handle.file = this.file;
 		this.file = this.position = null!;
 	}
@@ -178,12 +166,12 @@ class FileHandle extends Handle implements FileSystemFileHandle {
 	}
 
 	public async getFile(): Promise<File> {
-		if (!this.file) throw error('NotFoundError');
+		if (!this.file) throw new DOMException('', 'NotFoundError');
 		return this.file;
 	}
 
 	public async createWritable(options: FileSystemCreateWritableOptions = {}) {
-		if (!this.file) throw error('NotFoundError');
+		if (!this.file) throw new DOMException('', 'NotFoundError');
 		return new WritableFileStream(this, options);
 	}
 
@@ -209,7 +197,7 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 	 *
 	 * @internal
 	 */
-	_data = new Map<string, ActualHandle>();
+	_data = new Map<string, FileHandle | DirectoryHandle>();
 
 	protected _get<T extends FileSystemHandleKind>(kind: T, name: string, options: GetOptions<T>): HandleWithKind<T> {
 		if (name === '') throw new TypeError('Name can not be an empty string.');
@@ -217,11 +205,11 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 
 		const entry = this._data.get(name);
 
-		if (entry && !is(entry, kind)) throw new DOMException('The path supplied exists, but was not an entry of requested type.', 'TypeMismatchError');
+		if (entry && !is(entry, kind)) throw new DOMException('', 'TypeMismatchError');
 
 		if (entry) return entry;
 
-		if (!options.create) throw error('NotFoundError');
+		if (!options.create) throw new DOMException('', 'NotFoundError');
 
 		const handle = (kind == 'directory' ? new DirectoryHandle(name) : new FileHandle(name, new File([], name))) as HandleWithKind<T>;
 
@@ -241,7 +229,7 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 		if (name === '') throw new TypeError('Name can not be an empty string.');
 		if (name === '.' || name === '..' || name.includes('/')) throw new TypeError('Name contains invalid characters.');
 		const entry = this._data.get(name);
-		if (!entry) throw error('NotFoundError');
+		if (!entry) throw new DOMException('', 'NotFoundError');
 		entry.remove(options);
 	}
 
@@ -268,7 +256,7 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 	}
 
 	public async remove(options?: FileSystemRemoveOptions): Promise<void> {
-		if (this._data.size && !options?.recursive) throw new DOMException('The object can not be modified in this way.', 'InvalidModificationError');
+		if (this._data.size && !options?.recursive) throw new DOMException('', 'InvalidModificationError');
 
 		for (const entry of this._data.values()) {
 			entry.remove({ recursive: true });
@@ -295,13 +283,11 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 	}
 }
 
-const handles = {
-	file: FileHandle,
-	directory: DirectoryHandle,
+export {
+	Handle as FileSystemHandle,
+	FileHandle as FileSystemFileHandle,
+	DirectoryHandle as FileSystemDirectoryHandle,
+	WritableFileStream as FileSystemWritableFileStream,
 };
-
-type ActualHandle = FileHandle | DirectoryHandle;
-
-export { Handle as FileSystemHandle, FileHandle as FileSystemFileHandle, DirectoryHandle as FileSystemDirectoryHandle, WritableFileStream as FileSystemWritableFileStream };
 
 export const handle = new DirectoryHandle('');
