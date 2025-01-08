@@ -1,15 +1,12 @@
 {
+	"extends": "../tsconfig.json",
 	"type": "module",
 	"compilerOptions": {
-		"module": "NodeNext",
 		"target": "ES2022",
 		"noEmit": true,
 		"lib": ["ESNext", "ESNext.Disposable", "DOM"],
-		"moduleResolution": "NodeNext",
 		"esModuleInterop": true,
-		"allowSyntheticDefaultImports": true,
-		"strict": true
+		"allowSyntheticDefaultImports": true
 	},
-	"extends": "../tsconfig.json",
 	"include": ["**/*.ts", "*.ts"]
 }
