@@ -26,11 +26,11 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 		return new SimpleTransaction(this);
 	}
 
-	public keys(): Iterable<bigint> {
-		return Object.keys(this.storage).map(k => BigInt(k));
+	public keys(): Iterable<number> {
+		return Object.keys(this.storage).map(k => Number(k));
 	}
 
-	public get(key: bigint): Uint8Array | undefined {
+	public get(key: number): Uint8Array | undefined {
 		const data = this.storage.getItem(key.toString());
 		if (typeof data != 'string') {
 			return;
@@ -39,7 +39,7 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 		return encodeRaw(data);
 	}
 
-	public set(key: bigint, data: Uint8Array): void {
+	public set(key: number, data: Uint8Array): void {
 		try {
 			this.storage.setItem(key.toString(), decodeRaw(data));
 		} catch {
@@ -47,7 +47,7 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 		}
 	}
 
-	public delete(key: bigint): void {
+	public delete(key: number): void {
 		try {
 			this.storage.removeItem(key.toString());
 		} catch (e) {

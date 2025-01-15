@@ -2,6 +2,7 @@
 Ponyfill of the File System Access web API.
 This is a re-write of `file-system-access` by Alexandru Ciucă (@use-strict)
 */
+/// <reference lib="dom.asynciterable" />
 
 function isCommand<const T extends WriteCommandType = WriteCommandType>(chunk: unknown, type: T): chunk is WriteParams & { type: T } {
 	return typeof chunk === 'object' && chunk != null && 'type' in chunk && chunk.type == type;
@@ -248,7 +249,7 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 
 				if (entry.kind != 'directory') continue;
 
-				stack.push([entry as DirectoryHandle, [...path, name]]);
+				stack.push([entry, [...path, name]]);
 			}
 		}
 
@@ -266,19 +267,25 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 		this._parent?._data.delete(this.name);
 	}
 
-	public async entries() {
-		return this._data.entries();
+	public async *entries(): AsyncGenerator<[string, FileHandle | DirectoryHandle]> {
+		for (const entry of this._data.entries()) {
+			yield entry;
+		}
 	}
 
-	public async keys() {
-		return this._data.keys();
+	public async *keys(): AsyncGenerator<string> {
+		for (const key of this._data.keys()) {
+			yield key;
+		}
 	}
 
-	public async values() {
-		return this._data.values();
+	public async *values(): AsyncGenerator<FileHandle | DirectoryHandle> {
+		for (const value of this._data.values()) {
+			yield value;
+		}
 	}
 
-	public [Symbol.asyncIterator]() {
+	public [Symbol.asyncIterator](): AsyncGenerator<[string, FileHandle | DirectoryHandle]> {
 		return this.entries();
 	}
 }

@@ -1,9 +1,14 @@
 /* Credit: David Konsumer */
-import type { DeviceDriver, DeviceFile } from '@zenfs/core';
+import type { Device, DeviceDriver } from '@zenfs/core';
 import { Errno, ErrnoError } from '@zenfs/core';
 
 export interface FramebufferOptions {
 	canvas?: HTMLCanvasElement | null;
+}
+
+export interface FramebufferData {
+	context: CanvasRenderingContext2D;
+	image: ImageData;
 }
 
 let framebufferN = 0;
@@ -16,31 +21,32 @@ let framebufferN = 0;
  * addDevice(framebuffer, { canvas: document.querySelector('#your-canvas') })
  * ```
  */
-export const framebuffer: DeviceDriver<CanvasRenderingContext2D> = {
+export const framebuffer: DeviceDriver<FramebufferData> = {
 	name: 'framebuffer',
-	init(ino: bigint, { canvas }: FramebufferOptions = {}) {
+	init(ino: number, { canvas }: FramebufferOptions = {}) {
 		if (!canvas) {
 			canvas = document.createElement('canvas');
 			document.body.appendChild(canvas);
 		}
-		const ctx = canvas.getContext('2d');
+		const context = canvas.getContext('2d');
 
-		if (!ctx) {
+		if (!context) {
 			throw new ErrnoError(Errno.EIO, 'Could not get context from canvas whilst initializing frame buffer.');
 		}
 
-		return { data: ctx, major: 29, minor: framebufferN++, name: 'fb' };
+		const image = new ImageData(canvas.width, canvas.height);
+
+		return {
+			data: { context, image },
+			major: 29,
+			minor: framebufferN++,
+			name: 'fb',
+		};
 	},
-	read() {
-		return 0;
-	},
-	write(file: DeviceFile<CanvasRenderingContext2D>, data: Uint8Array) {
-		const { width, height } = file.device.data.canvas;
-		if (data.byteLength < 4 * width * height) {
-			return 0;
-		}
-		const imageData = new ImageData(new Uint8ClampedArray(data), width, height);
-		file.device.data.putImageData(imageData, 0, 0);
-		return data.byteLength;
+	readD() {},
+	writeD({ data: { image, context } }: Device<FramebufferData>, buffer, offset) {
+		image.data.set(buffer, offset);
+		context.putImageData(image, 0, 0);
+		return buffer.byteLength;
 	},
 };

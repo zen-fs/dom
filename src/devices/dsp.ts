@@ -1,5 +1,5 @@
 /* Credit: David Konsumer */
-import type { DeviceDriver, DeviceFile } from '@zenfs/core';
+import type { Device, DeviceDriver } from '@zenfs/core';
 
 /* Types pulled from @types/audioworklet */
 
@@ -47,8 +47,8 @@ if ('AudioWorkletProcessor' in globalThis) {
 
 		public process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
 			if (this.buffer && this.buffer.byteLength >= 128) {
-				outputs[0][0].set(this.buffer.slice(0, 128));
-				this.buffer = this.buffer.slice(128);
+				outputs[0][0].set(this.buffer.subarray(0, 128));
+				this.buffer = this.buffer.subarray(128);
 			}
 			return true;
 		}
@@ -91,15 +91,14 @@ export async function dsp(options: DspOptions = {}): Promise<DeviceDriver<AudioW
 	return {
 		name: 'dsp',
 		singleton: true,
-		init(ino: bigint, options: DspOptions) {
+		init(ino: number, options: DspOptions) {
 			return { data: dsp, major: 14, minor: 3 };
 		},
-		read() {
-			return 0;
+		readD() {
+			return;
 		},
-		write(file: DeviceFile<AudioWorkletNode>, data: Uint8Array): number {
-			file.device.data.port.postMessage(data.buffer);
-			return data.byteLength;
+		writeD(device: Device<AudioWorkletNode>, buffer, offset) {
+			device.data.port.postMessage(buffer.buffer);
 		},
 	};
 }

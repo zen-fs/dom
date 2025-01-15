@@ -1,5 +1,5 @@
-import type { Backend, CreationOptions, FileSystemMetadata } from '@zenfs/core';
-import { Async, constants, Errno, ErrnoError, FileSystem, InMemory, PreloadFile, Stats } from '@zenfs/core';
+import type { Backend, CreationOptions, FileSystemMetadata, InodeLike } from '@zenfs/core';
+import { Async, constants, Errno, ErrnoError, FileSystem, Index, InMemory, PreloadFile, Stats } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/vfs/path.js';
 import { convertException, type ConvertException } from './utils.js';
 
@@ -29,7 +29,9 @@ function isKind<const T extends FileSystemHandleKind>(handle: FileSystemHandle, 
 }
 
 export class WebAccessFS extends Async(FileSystem) {
-	private _handles: Map<string, FileSystemHandle> = new Map();
+	protected index = new Index();
+
+	protected _handles = new Map<string, FileSystemHandle>();
 
 	/**
 	 * @hidden
@@ -51,8 +53,9 @@ export class WebAccessFS extends Async(FileSystem) {
 		};
 	}
 
-	public async sync(path: string, data: Uint8Array): Promise<void> {
-		await this.writeFile(path, data);
+	public async sync(path: string, data?: Uint8Array, stats?: Partial<Readonly<InodeLike>>): Promise<void> {
+		this.index.get(path)!.update(stats);
+		if (data) await this.write(path, data, 0);
 	}
 
 	public async rename(oldPath: string, newPath: string): Promise<void> {
@@ -93,23 +96,57 @@ export class WebAccessFS extends Async(FileSystem) {
 		await this.unlink(oldPath);
 	}
 
-	public async writeFile(path: string, data: Uint8Array): Promise<void> {
-		if (isResizable(data.buffer)) {
+	public async read(path: string, buffer: Uint8Array, offset: number, end: number): Promise<void> {
+		const handle = await this.getHandle(path, 'write');
+
+		if (!isKind(handle, 'file')) throw ErrnoError.With('EISDIR', path, 'write');
+
+		const file = await handle.getFile();
+		const data = await file.arrayBuffer();
+
+		buffer.set(new Uint8Array(data, offset, end - offset));
+	}
+
+	public async write(path: string, buffer: Uint8Array, offset: number): Promise<void> {
+		if (isResizable(buffer.buffer)) {
 			throw new ErrnoError(Errno.EINVAL, 'Resizable buffers can not be written', path, 'write');
 		}
 
-		const handle = await this.getHandle(dirname(path), 'writeFile');
+		const handle = await this.getHandle(path, 'write');
 
-		if (!isKind(handle, 'directory')) throw ErrnoError.With('ENOTDIR', dirname(path), 'writeFile');
+		if (!isKind(handle, 'file')) throw ErrnoError.With('EISDIR', path, 'write');
 
-		const file = await handle.getFileHandle(basename(path), { create: true });
-		const writable = await file.createWritable();
-		await writable.write(data);
+		const writable = await handle.createWritable();
+
+		try {
+			await writable.seek(offset);
+		} catch {
+			await writable.write({ type: 'seek', position: offset });
+		}
+		await writable.write(buffer);
 		await writable.close();
 	}
 
+	/**
+	 * Do not use!
+	 * @deprecated @internal @hidden
+	 */
+	public async writeFile(path: string, data: Uint8Array): Promise<void> {
+		return this.write(path, data, 0);
+	}
+
 	public async createFile(path: string, flag: string): Promise<PreloadFile<this>> {
-		await this.writeFile(path, new Uint8Array());
+		const handle = await this.getHandle(dirname(path), 'createFile');
+
+		if (!isKind(handle, 'directory')) throw ErrnoError.With('ENOTDIR', dirname(path), 'createFile');
+
+		const base = basename(path);
+
+		for await (const key of handle.keys()) {
+			if (key == base) throw ErrnoError.With('EEXIST', path, 'createFile');
+		}
+
+		await handle.getFileHandle(base, { create: true });
 		return this.openFile(path, flag);
 	}
 
@@ -226,10 +263,6 @@ const _WebAccess = {
 
 	options: {
 		handle: { type: 'object', required: true },
-	},
-
-	isAvailable(): boolean {
-		return typeof FileSystemHandle == 'function';
 	},
 
 	create(options: WebAccessOptions) {

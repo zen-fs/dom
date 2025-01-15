@@ -1,5 +1,5 @@
-import type { Backend, CreationOptions, File, FileSystemMetadata, StatsLike } from '@zenfs/core';
-import { constants, decodeRaw, encodeRaw, Errno, ErrnoError, FileSystem, PreloadFile, Stats, Sync } from '@zenfs/core';
+import type { Backend, CreationOptions, File, FileSystemMetadata, InodeLike, StatsLike } from '@zenfs/core';
+import { _inode_fields, constants, decodeRaw, encodeRaw, Errno, ErrnoError, FileSystem, LazyFile, Stats, Sync } from '@zenfs/core';
 import { basename, dirname } from '@zenfs/core/vfs/path.js';
 
 export interface XMLOptions {
@@ -9,22 +9,19 @@ export interface XMLOptions {
 	root?: Element;
 }
 
-const statsLikeKeys = ['size', 'mode', 'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs', 'uid', 'gid', 'ino', 'nlink'] as const;
-
 function get_stats(node: Element): Stats {
-	const stats: Partial<StatsLike<number>> = {};
-	for (const key of statsLikeKeys) {
+	const stats: Partial<InodeLike> = {};
+	for (const key of _inode_fields) {
 		const value = node.getAttribute(key);
-		stats[key] = value != null ? parseInt(value, 16) : undefined;
+		if (value !== null && value !== undefined) stats[key] = parseInt(value, 16);
 	}
 	return new Stats(stats);
 }
 
-function set_stats(node: Element, stats: Partial<StatsLike<number>>): void {
-	for (const key of statsLikeKeys) {
-		if (stats[key] != undefined) {
-			node.setAttribute(key, stats[key].toString(16));
-		}
+function set_stats(node: Element, stats: Readonly<Partial<InodeLike>>): void {
+	for (const key of Object.keys(stats) as (keyof InodeLike)[]) {
+		if (!(key in _inode_fields) || stats[key] === undefined) continue;
+		node.setAttribute(key, stats[key].toString(16));
 	}
 }
 
@@ -72,7 +69,7 @@ export class XMLFS extends Sync(FileSystem) {
 
 	public openFileSync(path: string, flag: string): File {
 		const node = this.get('openFile', path);
-		return new PreloadFile(this, path, flag, get_stats(node), encodeRaw(node.textContent!));
+		return new LazyFile(this, path, flag, get_stats(node));
 	}
 
 	public createFileSync(path: string, flag: string, mode: number, { uid, gid }: CreationOptions): File {
@@ -83,7 +80,7 @@ export class XMLFS extends Sync(FileSystem) {
 			gid: parent.mode & constants.S_ISGID ? parent.gid : gid,
 		});
 		this.create('createFile', path, stats);
-		return new PreloadFile(this, path, flag, stats);
+		return new LazyFile(this, path, flag, stats);
 	}
 
 	public unlinkSync(path: string): void {
@@ -124,10 +121,23 @@ export class XMLFS extends Sync(FileSystem) {
 		this.add('link', node, link);
 	}
 
-	public syncSync(path: string, data: Uint8Array, stats: Readonly<Stats>): void {
+	public syncSync(path: string, data?: Uint8Array, stats: Readonly<Partial<InodeLike>> = {}): void {
 		const node = this.get('sync', path);
-		node.textContent = decodeRaw(data);
+		if (data) node.textContent = decodeRaw(data);
 		set_stats(node, stats);
+	}
+
+	public readSync(path: string, buffer: Uint8Array, offset: number, end: number): void {
+		const node = this.get('read', path);
+		const raw = encodeRaw(node.textContent!.slice(offset, end));
+		buffer.set(raw);
+	}
+
+	public writeSync(path: string, buffer: Uint8Array, offset: number): void {
+		const node = this.get('write', path);
+		const data = decodeRaw(buffer);
+		const after = node.textContent!.slice(offset + data.length);
+		node.textContent = node.textContent!.slice(0, offset) + data + after;
 	}
 
 	public toString(): string {
@@ -143,7 +153,7 @@ export class XMLFS extends Sync(FileSystem) {
 		throw ErrnoError.With('ENOENT', path, syscall);
 	}
 
-	protected create(syscall: string, path: string, stats: Partial<StatsLike<number>> & Pick<StatsLike, 'mode'>): Element {
+	protected create(syscall: string, path: string, stats: Partial<InodeLike> & Pick<StatsLike, 'mode'>): Element {
 		if (this.existsSync(path)) throw ErrnoError.With('EEXIST', path, syscall);
 		const node = document.createElement('file');
 		this.add(syscall, node, path);

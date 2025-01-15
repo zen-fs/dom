@@ -26,19 +26,19 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 		this._idb = tx.objectStore(store.name);
 	}
 
-	public async keys(): Promise<Iterable<bigint>> {
-		return (await wrap(this._idb.getAllKeys())).filter(k => typeof k == 'string').map(k => BigInt(k));
+	public async keys(): Promise<Iterable<number>> {
+		return (await wrap(this._idb.getAllKeys())).filter(k => typeof k == 'string').map(k => Number(k));
 	}
 
-	public get(key: bigint): Promise<Uint8Array> {
+	public get(key: number): Promise<Uint8Array> {
 		return wrap(this._idb.get(key.toString()));
 	}
 
-	public async set(key: bigint, data: Uint8Array): Promise<void> {
+	public async set(key: number, data: Uint8Array): Promise<void> {
 		await wrap(this._idb.put(data, key.toString()));
 	}
 
-	public remove(key: bigint): Promise<void> {
+	public remove(key: number): Promise<void> {
 		return wrap(this._idb.delete(key.toString()));
 	}
 
