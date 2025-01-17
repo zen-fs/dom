@@ -6,10 +6,10 @@ Please read the ZenFS core documentation!
 
 ## Backends
 
--   `WebStorage` stores files in a `Storage` object, like `localStorage` and `sessionStorage`.
--   `IndexedDB` stores files into an `IndexedDB` object database.
--   `WebAccess` uses the [File System Access API](https://developer.mozilla.org/Web/API/File_System_API).
--   `XML` uses an `XMLDocument` to store files, which can be appended to the DOM.
+- `WebStorage` stores files in a `Storage` object, like `localStorage` and `sessionStorage`.
+- `IndexedDB` stores files into an `IndexedDB` object database.
+- `WebAccess` uses the [File System Access API](https://developer.mozilla.org/Web/API/File_System_API).
+- `XML` uses an `XMLDocument` to store files, which can be appended to the DOM.
 
 For more information, see the [API documentation](https://zen-fs.github.io/dom).
 

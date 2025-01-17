@@ -16,7 +16,8 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 		private handle: FileHandle,
 		{ keepExistingData }: FileSystemCreateWritableOptions
 	) {
-		this.file = keepExistingData ? handle.file : new File([], handle.file.name, handle.file);
+		this.file = handle.file;
+		//this.file = keepExistingData ? handle.file : new File([], handle.file.name, handle.file);
 	}
 
 	async write(chunk: FileSystemWriteChunkType) {
@@ -24,7 +25,7 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 
 		if (isCommand(chunk, 'seek')) {
 			if (!Number.isInteger(chunk.position) || chunk.position! < 0) throw new DOMException('', 'SyntaxError');
-			if (this.file.size < chunk.position!) throw new DOMException('seeking position failed.', 'InvalidStateError');
+			//if (this.file.size < chunk.position!) throw new DOMException('seeking position failed.', 'InvalidStateError');
 
 			this.position = chunk.position!;
 			return;
@@ -73,11 +74,14 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 }
 
 class WritableFileStream extends WritableStream<FileSystemWriteChunkType> implements FileSystemWritableFileStream {
+	private writer: WritableStreamDefaultWriter<FileSystemWriteChunkType>;
+
 	constructor(
 		protected readonly handle: FileHandle,
 		protected readonly options: FileSystemCreateWritableOptions
 	) {
 		super(new Sink(handle, options));
+		this.writer = this.getWriter();
 	}
 
 	public seek(position: number) {
@@ -89,9 +93,13 @@ class WritableFileStream extends WritableStream<FileSystemWriteChunkType> implem
 	}
 
 	public async write(data: FileSystemWriteChunkType) {
-		const writer = this.getWriter();
-		await writer.write(data);
-		writer.releaseLock();
+		await this.writer.ready;
+		await this.writer.write(data);
+	}
+
+	public async close(): Promise<void> {
+		await this.writer.close();
+		this.writer.releaseLock();
 	}
 }
 
