@@ -16,8 +16,7 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 		private handle: FileHandle,
 		{ keepExistingData }: FileSystemCreateWritableOptions
 	) {
-		this.file = handle.file;
-		//this.file = keepExistingData ? handle.file : new File([], handle.file.name, handle.file);
+		this.file = keepExistingData ? handle.file : new File([], handle.file.name, { type: handle.file.type, lastModified: Date.now() });
 	}
 
 	async write(chunk: FileSystemWriteChunkType) {
@@ -33,8 +32,15 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 
 		if (isCommand(chunk, 'truncate')) {
 			if (!Number.isInteger(chunk.size) || chunk.size! < 0) throw new DOMException('', 'SyntaxError');
-			const parts = [chunk.size! < this.file.size ? this.file.slice(0, chunk.size!) : this.file, new Uint8Array(chunk.size! - this.file.size)];
-			this.file = new File(parts, this.file.name, this.file);
+			const props = { lastModified: Date.now(), type: this.file.type };
+			if (chunk.size! < this.file.size) {
+				// cutting down
+				this.file = new File([this.file.slice(0, chunk.size!)], this.file.name, props);
+			} else if (chunk.size! > this.file.size) {
+				// extending
+				this.file = new File([this.file, new Uint8Array(chunk.size! - this.file.size)], this.file.name, props);
+			}
+			// if chunk.size == this.file.size, do nothing
 			if (this.position > this.file.size) this.position = this.file.size;
 			return;
 		}
@@ -43,7 +49,7 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 			if (typeof chunk.position === 'number' && chunk.position >= 0) {
 				this.position = chunk.position;
 				if (this.file.size < chunk.position) {
-					this.file = new File([this.file, new ArrayBuffer(chunk.position - this.file.size)], this.file.name, this.file);
+					this.file = new File([this.file, new ArrayBuffer(chunk.position - this.file.size)], this.file.name);
 				}
 			}
 			if (!('data' in chunk)) {
@@ -69,7 +75,6 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 	async close() {
 		if (!this.handle.file) throw new DOMException('', 'NotFoundError');
 		this.handle.file = this.file;
-		this.file = this.position = null!;
 	}
 }
 

@@ -62,9 +62,7 @@ export type ConvertException = ErrnoError | DOMException | Error;
  * @internal
  */
 export function convertException(ex: ConvertException, path?: string, syscall?: string): ErrnoError {
-	if (ex instanceof ErrnoError) {
-		return ex;
-	}
+	if (ex instanceof ErrnoError) return ex;
 
 	const code = ex instanceof DOMException ? Errno[errnoForDOMException(ex)] : Errno.EIO;
 	const error = new ErrnoError(code, ex.message, path, syscall);

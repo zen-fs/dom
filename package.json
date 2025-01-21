@@ -61,7 +61,7 @@
 		"typescript-eslint": "^8.8.1"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^1.8.2"
+		"@zenfs/core": "^1.8.6"
 	},
 	"keywords": [
 		"filesystem",

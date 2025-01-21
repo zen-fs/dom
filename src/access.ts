@@ -65,7 +65,7 @@ export class WebAccessFS extends Async(FileSystem) {
 			if (isKind(handle, 'file')) {
 				const { lastModified, size } = await handle.getFile();
 				this.index.set(path, new Inode({ mode: 0o777 | constants.S_IFREG, size, mtimeMs: lastModified }));
-				return;
+				continue;
 			}
 
 			if (!isKind(handle, 'directory')) throw new ErrnoError(Errno.EIO, 'Invalid handle', path);
@@ -85,7 +85,7 @@ export class WebAccessFS extends Async(FileSystem) {
 		 * Disables index optimizations,
 		 * like using the index for `readdir`
 		 */
-		public readonly disableIndexOptimizations: boolean = false
+		private readonly disableIndexOptimizations: boolean = false
 	) {
 		super();
 		this._handles.set('/', handle);
@@ -101,15 +101,19 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async rename(oldPath: string, newPath: string): Promise<void> {
+		if (oldPath == newPath) return;
+		if (newPath.startsWith(oldPath + '/')) throw ErrnoError.With('EBUSY', oldPath, 'rename');
+
 		const handle = this.get(null, oldPath, 'rename');
 		if (isKind(handle, 'directory')) {
 			const files = await this.readdir(oldPath);
+			const stats = await this.stat(oldPath);
 
-			await this.mkdir(newPath);
+			await this.mkdir(newPath, stats.mode, stats);
 
 			for (const file of files) await this.rename(join(oldPath, file), join(newPath, file));
 
-			await this.unlink(oldPath);
+			await this.rmdir(oldPath);
 
 			return;
 		}
@@ -117,18 +121,22 @@ export class WebAccessFS extends Async(FileSystem) {
 		if (!isKind(handle, 'file')) {
 			throw new ErrnoError(Errno.ENOTSUP, 'Not a file or directory handle', oldPath, 'rename');
 		}
+
 		const oldFile = await handle.getFile().catch(ex => _throw(convertException(ex, oldPath, 'rename')));
 
 		const destFolder = this.get('directory', dirname(newPath), 'rename');
 
 		const newFile = await destFolder
 			.getFileHandle(basename(newPath), { create: true })
-			.catch(ex => _throw(convertException(ex, newPath, 'rename')));
+			.catch((ex: DOMException) =>
+				_throw(ex.name == 'TypeMismatchError' ? ErrnoError.With('EISDIR', newPath, 'rename') : convertException(ex, newPath, 'rename'))
+			);
 
 		const writable = await newFile.createWritable();
 		await writable.write(await oldFile.arrayBuffer());
 		await writable.close();
 		await this.unlink(oldPath);
+		this._handles.set(newPath, newFile);
 	}
 
 	public async unlink(path: string): Promise<void> {
@@ -139,21 +147,26 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async read(path: string, buffer: Uint8Array, offset: number, end: number): Promise<void> {
+		if (end <= offset) return;
 		const handle = this.get('file', path, 'write');
 
 		const file = await handle.getFile();
 		const data = await file.arrayBuffer();
 
+		if (data.byteLength < end - offset) throw ErrnoError.With('ENODATA', path, 'read');
+
 		buffer.set(new Uint8Array(data, offset, end - offset));
 	}
 
 	public async write(path: string, buffer: Uint8Array, offset: number): Promise<void> {
+		const inode = this.index.get(path);
+		if (!inode) throw ErrnoError.With('ENOENT', path, 'write');
+
 		if (isResizable(buffer.buffer)) {
 			throw new ErrnoError(Errno.EINVAL, 'Resizable buffers can not be written', path, 'write');
 		}
 
 		const handle = this.get('file', path, 'write');
-
 		const writable = await handle.createWritable();
 
 		try {
@@ -163,6 +176,10 @@ export class WebAccessFS extends Async(FileSystem) {
 		}
 		await writable.write(buffer);
 		await writable.close();
+
+		const { size, lastModified } = await handle.getFile();
+		inode.update({ size, mtimeMs: lastModified });
+		this.index.set(path, inode);
 	}
 
 	/**
@@ -173,10 +190,10 @@ export class WebAccessFS extends Async(FileSystem) {
 		return this.write(path, data, 0);
 	}
 
+	// eslint-disable-next-line @typescript-eslint/require-await
 	public async stat(path: string): Promise<Stats> {
 		const inode = this.index.get(path);
 		if (!inode) throw ErrnoError.With('ENOENT', path, 'stat');
-
 		return inode.toStats();
 	}
 
@@ -187,7 +204,8 @@ export class WebAccessFS extends Async(FileSystem) {
 
 		const file = await handle.getFileHandle(basename(path), { create: true });
 
-		const inode = new Inode({ ...options, mode: mode ?? 0 | S_IFREG });
+		// Race condition bypass
+		const inode = this.index.get(path) ?? new Inode({ ...options, mode: mode | S_IFREG });
 		this.index.set(path, inode);
 		this._handles.set(path, file);
 
@@ -209,17 +227,33 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async sync(path: string, data?: Uint8Array, stats?: Readonly<Partial<InodeLike>>): Promise<void> {
-		const inode = this.index.get(path) ?? new Inode(stats);
+		const inode = this.index.get(path) ?? new Inode();
 		inode.update(stats);
+
 		this.index.set(path, inode);
-		if (data) await this.write(path, data, 0);
+
+		if (!data) return;
+		const handle = this.get('file', path, 'write');
+		const writable = await handle.createWritable();
+
+		try {
+			await writable.seek(0);
+		} catch {
+			await writable.write({ type: 'seek', position: 0 });
+		}
+		await writable.write(data);
+		await writable.close();
 	}
 
 	public async rmdir(path: string): Promise<void> {
-		return this.unlink(path);
+		if ((await this.readdir(path)).length) throw ErrnoError.With('ENOTEMPTY', path, 'rmdir');
+		if (path == '/') throw ErrnoError.With('EBUSY', '/', 'rmdir');
+		const handle = this.get('directory', dirname(path), 'rmdir');
+		await handle.removeEntry(basename(path), { recursive: true }).catch(ex => _throw(convertException(ex, path, 'rmdir')));
+		this.index.delete(path);
 	}
 
-	public async mkdir(path: string, mode?: number, options?: CreationOptions): Promise<void> {
+	public async mkdir(path: string, mode: number, options: CreationOptions): Promise<void> {
 		if (this.index.has(path)) throw ErrnoError.With('EEXIST', path, 'mkdir');
 
 		const handle = this.get('directory', dirname(path), 'mkdir');
@@ -227,15 +261,15 @@ export class WebAccessFS extends Async(FileSystem) {
 		const dir = await handle.getDirectoryHandle(basename(path), { create: true });
 		this._handles.set(path, dir);
 
-		this.index.set(path, new Inode({ ...options, mode: mode ?? 0 | S_IFDIR }));
+		this.index.set(path, new Inode({ ...options, mode: mode | S_IFDIR }));
 	}
 
 	public async readdir(path: string): Promise<string[]> {
 		if (!this.disableIndexOptimizations) {
 			if (!this.index.has(path)) throw ErrnoError.With('ENOENT', path, 'readdir');
-			const listing = this.index.directories().get(path);
-			if (!listing) throw ErrnoError.With('ENOTDIR', path, 'readdir');
-			return Object.keys(listing);
+			const entries = this.index.directoryEntries(path);
+			if (!entries) throw ErrnoError.With('ENOTDIR', path, 'readdir');
+			return Object.keys(entries);
 		}
 
 		const handle = this.get('directory', path, 'readdir');
