@@ -64,7 +64,7 @@ export class WebAccessFS extends Async(FileSystem) {
 		for (const [path, handle] of this._handles) {
 			if (isKind(handle, 'file')) {
 				const { lastModified, size } = await handle.getFile();
-				this.index.set(path, new Inode({ mode: 0o777 | constants.S_IFREG, size, mtimeMs: lastModified }));
+				this.index.set(path, new Inode({ mode: 0o644 | constants.S_IFREG, size, mtimeMs: lastModified }));
 				continue;
 			}
 
@@ -159,12 +159,14 @@ export class WebAccessFS extends Async(FileSystem) {
 	}
 
 	public async write(path: string, buffer: Uint8Array, offset: number): Promise<void> {
+		if (isResizable(buffer.buffer)) {
+			const newBuffer = new Uint8Array(new ArrayBuffer(buffer.byteLength), buffer.byteOffset, buffer.byteLength);
+			newBuffer.set(buffer);
+			buffer = newBuffer;
+		}
+
 		const inode = this.index.get(path);
 		if (!inode) throw ErrnoError.With('ENOENT', path, 'write');
-
-		if (isResizable(buffer.buffer)) {
-			throw new ErrnoError(Errno.EINVAL, 'Resizable buffers can not be written', path, 'write');
-		}
 
 		const handle = this.get('file', path, 'write');
 		const writable = await handle.createWritable();
