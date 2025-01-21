@@ -9,73 +9,59 @@ function isCommand<const T extends WriteCommandType = WriteCommandType>(chunk: u
 }
 
 class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
-	protected file: File;
 	protected position: number = 0;
 
 	constructor(
 		private handle: FileHandle,
 		{ keepExistingData }: FileSystemCreateWritableOptions
-	) {
-		this.file = keepExistingData ? handle.file : new File([], handle.file.name, { type: handle.file.type, lastModified: Date.now() });
-	}
+	) {}
 
 	async write(chunk: FileSystemWriteChunkType) {
-		if (!this.handle.file) throw new DOMException('', 'NotFoundError');
-
 		if (isCommand(chunk, 'seek')) {
 			if (!Number.isInteger(chunk.position) || chunk.position! < 0) throw new DOMException('', 'SyntaxError');
-			//if (this.file.size < chunk.position!) throw new DOMException('seeking position failed.', 'InvalidStateError');
-
 			this.position = chunk.position!;
 			return;
 		}
 
 		if (isCommand(chunk, 'truncate')) {
 			if (!Number.isInteger(chunk.size) || chunk.size! < 0) throw new DOMException('', 'SyntaxError');
-			const props = { lastModified: Date.now(), type: this.file.type };
-			if (chunk.size! < this.file.size) {
+			const props = { lastModified: Date.now(), type: this.handle.file.type };
+			if (chunk.size! < this.handle.file.size) {
 				// cutting down
-				this.file = new File([this.file.slice(0, chunk.size!)], this.file.name, props);
-			} else if (chunk.size! > this.file.size) {
+				this.handle.file = new File([this.handle.file.slice(0, chunk.size!)], this.handle.file.name, props);
+			} else if (chunk.size! > this.handle.file.size) {
 				// extending
-				this.file = new File([this.file, new Uint8Array(chunk.size! - this.file.size)], this.file.name, props);
+				this.handle.file = new File([this.handle.file, new Uint8Array(chunk.size! - this.handle.file.size)], this.handle.file.name, props);
 			}
-			// if chunk.size == this.file.size, do nothing
-			if (this.position > this.file.size) this.position = this.file.size;
+			if (this.position > this.handle.file.size) this.position = this.handle.file.size;
 			return;
 		}
 
 		if (isCommand(chunk, 'write')) {
 			if (typeof chunk.position === 'number' && chunk.position >= 0) {
 				this.position = chunk.position;
-				if (this.file.size < chunk.position) {
-					this.file = new File([this.file, new ArrayBuffer(chunk.position - this.file.size)], this.file.name);
+				if (this.handle.file.size < chunk.position) {
+					// Pad with empty data if seeking past the current size
+					this.handle.file = new File([this.handle.file, new Uint8Array(chunk.position - this.handle.file.size)], this.handle.file.name);
 				}
 			}
-			if (!('data' in chunk)) {
-				throw new DOMException('', 'SyntaxError');
-			}
+			if (!('data' in chunk)) throw new DOMException('', 'SyntaxError');
 			chunk = chunk.data!;
 		}
 
 		chunk = new Blob([chunk as Exclude<FileSystemWriteChunkType, WriteParams>]);
 
-		// Calc the head and tail fragments
-		const head = this.file.slice(0, this.position);
-		const tail = this.file.slice(this.position + chunk.size);
+		// Calculate the head and tail fragments
+		const head = this.handle.file.slice(0, this.position);
+		const tail = this.handle.file.slice(this.position + chunk.size);
 
-		// Calc the padding
-		let padding = this.position - head.size;
-		if (padding < 0) padding = 0;
-		this.file = new File([head, new Uint8Array(padding), chunk, tail], this.file.name);
-
+		// Add padding if necessary
+		const padding = Math.max(this.position - head.size, 0);
+		this.handle.file = new File([head, new Uint8Array(padding), chunk, tail], this.handle.file.name);
 		this.position += chunk.size;
 	}
 
-	async close() {
-		if (!this.handle.file) throw new DOMException('', 'NotFoundError');
-		this.handle.file = this.file;
-	}
+	async close() {}
 }
 
 class WritableFileStream extends WritableStream<FileSystemWriteChunkType> implements FileSystemWritableFileStream {
@@ -225,10 +211,10 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 
 		if (!options.create) throw new DOMException('', 'NotFoundError');
 
-		const handle = (kind == 'directory' ? new DirectoryHandle(name) : new FileHandle(name, new File([], name))) as HandleWithKind<T>;
+		const handle = kind === 'directory' ? new DirectoryHandle(name) : new FileHandle(name, new File([], name));
 
 		this._data.set(name, handle);
-		return handle;
+		return handle as HandleWithKind<T>;
 	}
 
 	public async getFileHandle(name: string, options: FileSystemGetFileOptions = {}): Promise<FileHandle> {
