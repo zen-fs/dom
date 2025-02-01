@@ -45,7 +45,7 @@
 		"lint": "eslint src",
 		"build": "tsc -p tsconfig.json",
 		"build:docs": "typedoc --out docs --name 'ZenFS DOM' src/index.ts",
-		"test": "echo No tests yet",
+		"test": "npx zenfs-test -abcf",
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
@@ -61,7 +61,8 @@
 		"typescript-eslint": "^8.8.1"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^1.8.6"
+		"@zenfs/core": "^1.9.0",
+		"utilium": "^1.2.10"
 	},
 	"keywords": [
 		"filesystem",

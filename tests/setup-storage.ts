@@ -1,6 +1,6 @@
 import { configureSingle } from '@zenfs/core';
 import { WebStorage } from '../src/storage.js';
-import { copy, data } from '@zenfs/core/tests/setup.js';
+import { copySync, data } from '@zenfs/core/tests/setup.js';
 
 const storage = {
 	_: new Map<string, string>(),
@@ -36,4 +36,4 @@ globalThis.localStorage = storage;
 
 await configureSingle({ backend: WebStorage, storage });
 
-copy(data);
+copySync(data);

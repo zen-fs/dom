@@ -1,10 +1,10 @@
-import type { Backend, SimpleSyncStore, Store } from '@zenfs/core';
-import { ErrnoError, Errno, SimpleTransaction, StoreFS, decodeRaw, encodeRaw } from '@zenfs/core';
+import type { Backend, SyncMapStore, Store } from '@zenfs/core';
+import { ErrnoError, Errno, StoreFS, decodeRaw, encodeRaw, SyncMapTransaction } from '@zenfs/core';
 
 /**
  * A synchronous key-value store backed by Storage.
  */
-export class WebStorageStore implements Store, SimpleSyncStore {
+export class WebStorageStore implements Store, SyncMapStore {
 	public get name(): string {
 		return WebStorage.name;
 	}
@@ -22,8 +22,8 @@ export class WebStorageStore implements Store, SimpleSyncStore {
 
 	public async sync(): Promise<void> {}
 
-	public transaction(): SimpleTransaction {
-		return new SimpleTransaction(this);
+	public transaction(): SyncMapTransaction {
+		return new SyncMapTransaction(this);
 	}
 
 	public keys(): Iterable<number> {

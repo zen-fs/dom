@@ -1,5 +1,6 @@
-import type { AsyncMixin, Backend, SharedConfig, Store } from '@zenfs/core';
-import { Async, AsyncTransaction, ErrnoError, InMemory, StoreFS } from '@zenfs/core';
+import type { Backend, SharedConfig, Store } from '@zenfs/core';
+import { AsyncTransaction, StoreFS, log } from '@zenfs/core';
+import type * as cache from 'utilium/cache.js';
 import { convertException } from './utils.js';
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {
@@ -13,7 +14,7 @@ function wrap<T>(request: IDBRequest<T>): Promise<T> {
 }
 
 /**
- * @hidden
+ * @internal @hidden
  */
 export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 	private _idb: IDBObjectStore;
@@ -30,24 +31,24 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 		return (await wrap(this._idb.getAllKeys())).filter(k => typeof k == 'string').map(k => Number(k));
 	}
 
-	public get(key: number): Promise<Uint8Array> {
-		return wrap(this._idb.get(key.toString()));
+	public async get(id: number): Promise<Uint8Array | undefined> {
+		const data: Uint8Array | undefined = await wrap(this._idb.get(id.toString()));
+		if (data) this._cached(id, { size: data.byteLength })!.add(data, 0);
+		return data;
 	}
 
-	public async set(key: number, data: Uint8Array): Promise<void> {
-		await wrap(this._idb.put(data, key.toString()));
+	public async set(id: number, data: Uint8Array): Promise<void> {
+		this._cached(id, { size: data.byteLength })!.add(data, 0);
+		await wrap(this._idb.put(data, id.toString()));
 	}
 
-	public remove(key: number): Promise<void> {
-		return wrap(this._idb.delete(key.toString()));
+	public remove(id: number): Promise<void> {
+		this.store.cache.delete(id);
+		return wrap(this._idb.delete(id.toString()));
 	}
 
 	public async commit(): Promise<void> {
-		if (this.done) {
-			return;
-		}
 		const { promise, resolve, reject } = Promise.withResolvers<void>();
-		this.done = true;
 		this.tx.oncomplete = () => resolve();
 		this.tx.onerror = () => reject(convertException(this.tx.error!));
 		this.tx.commit();
@@ -55,10 +56,6 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 	}
 
 	public async abort(): Promise<void> {
-		if (this.done) {
-			return;
-		}
-		this.done = true;
 		const { promise, resolve, reject } = Promise.withResolvers<void>();
 		this.tx.onabort = () => resolve();
 		this.tx.onerror = () => reject(convertException(this.tx.error!));
@@ -71,35 +68,29 @@ async function createDB(name: string, indexedDB: IDBFactory = globalThis.indexed
 	const req: IDBOpenDBRequest = indexedDB.open(name);
 
 	req.onupgradeneeded = () => {
-		const db: IDBDatabase = req.result;
+		const db = req.result;
 		// This should never happen; we're at version 1. Why does another database exist?
 		if (db.objectStoreNames.contains(name)) {
+			log.warn('Found unexpected object store: ' + name);
 			db.deleteObjectStore(name);
 		}
 		db.createObjectStore(name);
 	};
 
-	const result = await wrap(req);
-	return result;
+	return await wrap(req);
 }
 
 export class IndexedDBStore implements Store {
+	cache = new Map<number, cache.Resource<number>>();
+
 	public constructor(protected db: IDBDatabase) {}
 
 	public sync(): Promise<void> {
-		throw ErrnoError.With('ENOSYS', undefined, 'IndexedDBStore.sync');
+		return Promise.resolve();
 	}
 
 	public get name(): string {
 		return this.db.name;
-	}
-
-	public clear(): Promise<void> {
-		return wrap(this.db.transaction(this.name, 'readwrite').objectStore(this.name).clear());
-	}
-
-	public clearSync(): void {
-		throw ErrnoError.With('ENOSYS', undefined, 'IndexedDBStore.clearSync');
 	}
 
 	public transaction(): IndexedDBTransaction {
@@ -131,14 +122,8 @@ const _IndexedDB = {
 	name: 'IndexedDB',
 
 	options: {
-		storeName: {
-			type: 'string',
-			required: false,
-		},
-		idbFactory: {
-			type: 'object',
-			required: false,
-		},
+		storeName: { type: 'string', required: false },
+		idbFactory: { type: 'object', required: false },
 	},
 
 	async isAvailable(idbFactory: IDBFactory = globalThis.indexedDB): Promise<boolean> {
@@ -156,16 +141,21 @@ const _IndexedDB = {
 		}
 	},
 
-	async create(options: IndexedDBOptions & Partial<SharedConfig>): Promise<AsyncMixin & StoreFS<IndexedDBStore>> {
+	async create(options: IndexedDBOptions & Partial<SharedConfig>): Promise<StoreFS<IndexedDBStore>> {
 		const db = await createDB(options.storeName || 'zenfs', options.idbFactory);
 		const store = new IndexedDBStore(db);
-		const fs = new (Async(StoreFS))(store);
-		if (!options?.disableAsyncCache) {
-			fs._sync = InMemory.create({ name: 'idb-cache' });
+		const fs = new StoreFS(store);
+		if (options?.disableAsyncCache) {
+			log.notice('Async preloading disabled for IndexedDB');
+			return fs;
+		}
+		const tx = store.transaction();
+		for (const id of await tx.keys()) {
+			await tx.get(id); // Adds to cache
 		}
 		return fs;
 	},
-} as const satisfies Backend<AsyncMixin & StoreFS<IndexedDBStore>, IndexedDBOptions>;
+} as const satisfies Backend<StoreFS<IndexedDBStore>, IndexedDBOptions>;
 type _IndexedDB = typeof _IndexedDB;
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface IndexedDB extends _IndexedDB {}

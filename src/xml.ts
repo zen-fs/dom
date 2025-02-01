@@ -1,4 +1,4 @@
-import type { Backend, CreationOptions, File, FileSystemMetadata, InodeLike, StatsLike } from '@zenfs/core';
+import type { Backend, CreationOptions, File, InodeLike, StatsLike } from '@zenfs/core';
 import { _inode_fields, constants, decodeRaw, encodeRaw, Errno, ErrnoError, FileSystem, LazyFile, Stats, Sync } from '@zenfs/core';
 import { basename, dirname } from '@zenfs/core/vfs/path.js';
 
@@ -39,11 +39,12 @@ function get_paths(node: Element, contents: boolean = false): string[] {
 export class XMLFS extends Sync(FileSystem) {
 	public constructor(
 		/**
-		 * @inheritdoc XMLOptions.root
+		 * @inheritDoc XMLOptions.root
 		 */
 		public readonly root: Element = new DOMParser().parseFromString('<fs></fs>', 'application/xml').documentElement
 	) {
-		super();
+		super(0x20786d6c, 'xmltmpfs');
+		this.attributes.set('setid');
 
 		try {
 			this.mkdirSync('/', 0o777, { uid: 0, gid: 0 });
@@ -51,10 +52,6 @@ export class XMLFS extends Sync(FileSystem) {
 			const error = e as ErrnoError;
 			if (error.code != 'EEXIST') throw error;
 		}
-	}
-
-	public metadata(): FileSystemMetadata {
-		return { ...super.metadata(), features: ['setid'] };
 	}
 
 	public renameSync(oldPath: string, newPath: string): void {

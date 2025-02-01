@@ -1,7 +1,8 @@
-import type { Backend, CreationOptions, File, FileSystemMetadata, InodeLike, Stats } from '@zenfs/core';
-import { _throw, Async, constants, Errno, ErrnoError, FileSystem, Index, InMemory, Inode, LazyFile } from '@zenfs/core';
+import type { Backend, CreationOptions, File, InodeLike, Stats } from '@zenfs/core';
+import { Async, constants, Errno, ErrnoError, FileSystem, Index, InMemory, Inode, LazyFile } from '@zenfs/core';
 import { S_IFDIR, S_IFREG } from '@zenfs/core/vfs/constants.js';
 import { basename, dirname, join } from '@zenfs/core/vfs/path.js';
+import { _throw } from 'utilium';
 import { convertException } from './utils.js';
 
 export interface WebAccessOptions {
@@ -87,17 +88,10 @@ export class WebAccessFS extends Async(FileSystem) {
 		 */
 		private readonly disableIndexOptimizations: boolean = false
 	) {
-		super();
+		super(0x77656261, 'webaccessfs');
+		this.attributes.set('no_buffer_resize');
+		this.attributes.set('setid');
 		this._handles.set('/', handle);
-	}
-
-	public metadata(): FileSystemMetadata {
-		return {
-			...super.metadata(),
-			name: 'WebAccess',
-			noResizableBuffers: true,
-			features: ['setid'],
-		};
 	}
 
 	public async rename(oldPath: string, newPath: string): Promise<void> {
