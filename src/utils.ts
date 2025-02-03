@@ -6,13 +6,14 @@ import { ErrnoError, Errno } from '@zenfs/core';
  */
 function errnoForDOMException(ex: DOMException): keyof typeof Errno {
 	switch (ex.name) {
+		case 'TypeMismatchError':
+			return 'EPERM';
 		case 'IndexSizeError':
 		case 'HierarchyRequestError':
 		case 'InvalidCharacterError':
 		case 'InvalidStateError':
 		case 'SyntaxError':
 		case 'NamespaceError':
-		case 'TypeMismatchError':
 		case 'ConstraintError':
 		case 'VersionError':
 		case 'URLMismatchError':
