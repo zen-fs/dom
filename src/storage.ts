@@ -79,8 +79,8 @@ const _WebStorage = {
 	/**
 	 * @todo Consider replacing `instanceof` with a duck-typing check?
 	 */
-	isAvailable(storage: Storage = globalThis.localStorage): boolean {
-		return storage instanceof globalThis.Storage;
+	isAvailable(config?: WebStorageOptions): boolean {
+		return (config?.storage ?? globalThis.localStorage) instanceof globalThis.Storage;
 	},
 
 	create({ storage = globalThis.localStorage }: WebStorageOptions) {
