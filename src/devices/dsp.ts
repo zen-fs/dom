@@ -94,10 +94,10 @@ export async function dsp(options: DspOptions = {}): Promise<DeviceDriver<AudioW
 		init(ino: number, options: DspOptions) {
 			return { data: dsp, major: 14, minor: 3 };
 		},
-		readD() {
+		read() {
 			return;
 		},
-		writeD(device: Device<AudioWorkletNode>, buffer, offset) {
+		write(device: Device<AudioWorkletNode>, buffer, offset) {
 			device.data.port.postMessage(buffer.buffer);
 		},
 	};

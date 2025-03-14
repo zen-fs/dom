@@ -1,5 +1,6 @@
-import type { Backend, SyncMapStore, Store } from '@zenfs/core';
-import { ErrnoError, Errno, StoreFS, decodeRaw, encodeRaw, SyncMapTransaction } from '@zenfs/core';
+import type { Backend, Store, SyncMapStore } from '@zenfs/core';
+import { Errno, ErrnoError, StoreFS, SyncMapTransaction } from '@zenfs/core';
+import { decodeASCII, encodeASCII } from 'utilium';
 
 /**
  * A synchronous key-value store backed by Storage.
@@ -36,12 +37,12 @@ export class WebStorageStore implements Store, SyncMapStore {
 			return;
 		}
 
-		return encodeRaw(data);
+		return encodeASCII(data);
 	}
 
 	public set(key: number, data: Uint8Array): void {
 		try {
-			this.storage.setItem(key.toString(), decodeRaw(data));
+			this.storage.setItem(key.toString(), decodeASCII(data));
 		} catch {
 			throw new ErrnoError(Errno.ENOSPC, 'Storage is full.');
 		}

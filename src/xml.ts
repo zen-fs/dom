@@ -1,7 +1,7 @@
-import type { Backend, CreationOptions, File, InodeLike, StatsLike } from '@zenfs/core';
-import { _inode_fields, constants, decodeRaw, encodeRaw, Errno, ErrnoError, FileSystem, LazyFile, Stats, Sync } from '@zenfs/core';
-import { basename, dirname } from '@zenfs/core/vfs/path.js';
-
+import type { Backend, CreationOptions, InodeLike, StatsLike } from '@zenfs/core';
+import { _inode_fields, constants, Errno, ErrnoError, FileSystem, Inode, Sync } from '@zenfs/core';
+import { basename, dirname } from '@zenfs/core/path.js';
+import { decodeASCII, encodeASCII } from 'utilium';
 export interface XMLOptions {
 	/**
 	 * The root `fs` element
@@ -9,13 +9,13 @@ export interface XMLOptions {
 	root?: Element;
 }
 
-function get_stats(node: Element): Stats {
+function get_stats(node: Element): Inode {
 	const stats: Partial<InodeLike> = {};
 	for (const key of _inode_fields) {
 		const value = node.getAttribute(key);
 		if (value !== null && value !== undefined) stats[key] = parseInt(value, 16);
 	}
-	return new Stats(stats);
+	return new Inode(stats);
 }
 
 function set_stats(node: Element, stats: Readonly<Partial<InodeLike>>): void {
@@ -44,10 +44,9 @@ export class XMLFS extends Sync(FileSystem) {
 		public readonly root: Element = new DOMParser().parseFromString('<fs></fs>', 'application/xml').documentElement
 	) {
 		super(0x20786d6c, 'xmltmpfs');
-		this.attributes.set('setid');
 
 		try {
-			this.mkdirSync('/', 0o777, { uid: 0, gid: 0 });
+			this.mkdirSync('/', { uid: 0, gid: 0, mode: 0o777 });
 		} catch (e: any) {
 			const error = e as ErrnoError;
 			if (error.code != 'EEXIST') throw error;
@@ -60,52 +59,48 @@ export class XMLFS extends Sync(FileSystem) {
 		this.add('rename', node, newPath);
 	}
 
-	public statSync(path: string): Stats {
+	public statSync(path: string): Inode {
 		return get_stats(this.get('stat', path));
 	}
 
-	public openFileSync(path: string, flag: string): File {
-		const node = this.get('openFile', path);
-		return new LazyFile(this, path, flag, get_stats(node));
-	}
-
-	public createFileSync(path: string, flag: string, mode: number, { uid, gid }: CreationOptions): File {
+	public createFileSync(path: string, options: CreationOptions): Inode {
 		const parent = this.statSync(dirname(path));
-		const stats = new Stats({
-			mode: mode | constants.S_IFREG,
-			uid: parent.mode & constants.S_ISUID ? parent.uid : uid,
-			gid: parent.mode & constants.S_ISGID ? parent.gid : gid,
+		const inode = new Inode({
+			mode: options.mode | constants.S_IFREG,
+			uid: parent.mode & constants.S_ISUID ? parent.uid : options.uid,
+			gid: parent.mode & constants.S_ISGID ? parent.gid : options.gid,
 		});
-		this.create('createFile', path, stats);
-		return new LazyFile(this, path, flag, stats);
+		this.create('createFile', path, inode);
+		return inode;
 	}
 
 	public unlinkSync(path: string): void {
 		const node = this.get('unlink', path);
-		if (get_stats(node).isDirectory()) throw ErrnoError.With('EISDIR', path, 'unlink');
+		if (get_stats(node).mode & constants.S_IFDIR) throw ErrnoError.With('EISDIR', path, 'unlink');
 		this.remove('unlink', node, path);
 	}
 
 	public rmdirSync(path: string): void {
 		const node = this.get('rmdir', path);
 		if (node.textContent?.length) throw ErrnoError.With('ENOTEMPTY', path, 'rmdir');
-		if (!get_stats(node).isDirectory()) throw ErrnoError.With('ENOTDIR', path, 'rmdir');
+		if (!(get_stats(node).mode & constants.S_IFDIR)) throw ErrnoError.With('ENOTDIR', path, 'rmdir');
 		this.remove('rmdir', node, path);
 	}
 
-	public mkdirSync(path: string, mode: number, { uid, gid }: CreationOptions): void {
+	public mkdirSync(path: string, options: CreationOptions): InodeLike {
 		const parent = this.statSync(dirname(path));
-		const node = this.create('mkdir', path, {
-			mode: mode | constants.S_IFDIR,
-			uid: parent.mode & constants.S_ISUID ? parent.uid : uid,
-			gid: parent.mode & constants.S_ISGID ? parent.gid : gid,
+		const inode = new Inode({
+			mode: options.mode | constants.S_IFDIR,
+			uid: parent.mode & constants.S_ISUID ? parent.uid : options.uid,
+			gid: parent.mode & constants.S_ISGID ? parent.gid : options.gid,
 		});
-		node.textContent = '[]';
+		this.create('mkdir', path, inode).textContent = '[]';
+		return inode;
 	}
 
 	public readdirSync(path: string): string[] {
 		const node = this.get('readdir', path);
-		if (!get_stats(node).isDirectory()) throw ErrnoError.With('ENOTDIR', path, 'rmdir');
+		if (!(get_stats(node).mode & constants.S_IFDIR)) throw ErrnoError.With('ENOTDIR', path, 'rmdir');
 		try {
 			return JSON.parse(node.textContent!) as string[];
 		} catch (e) {
@@ -118,21 +113,22 @@ export class XMLFS extends Sync(FileSystem) {
 		this.add('link', node, link);
 	}
 
-	public syncSync(path: string, data?: Uint8Array, stats: Readonly<Partial<InodeLike>> = {}): void {
-		const node = this.get('sync', path);
-		if (data) node.textContent = decodeRaw(data);
-		set_stats(node, stats);
+	public touchSync(path: string, metadata: Partial<InodeLike>): void {
+		const node = this.get('touch', path);
+		set_stats(node, metadata);
 	}
+
+	public syncSync(): void {}
 
 	public readSync(path: string, buffer: Uint8Array, offset: number, end: number): void {
 		const node = this.get('read', path);
-		const raw = encodeRaw(node.textContent!.slice(offset, end));
+		const raw = encodeASCII(node.textContent!.slice(offset, end));
 		buffer.set(raw);
 	}
 
 	public writeSync(path: string, buffer: Uint8Array, offset: number): void {
 		const node = this.get('write', path);
-		const data = decodeRaw(buffer);
+		const data = decodeASCII(buffer);
 		const after = node.textContent!.slice(offset + data.length);
 		node.textContent = node.textContent!.slice(0, offset) + data + after;
 	}
@@ -156,7 +152,7 @@ export class XMLFS extends Sync(FileSystem) {
 		this.add(syscall, node, path);
 		set_stats(
 			node,
-			new Stats({
+			new Inode({
 				...stats,
 				uid: stats.mode,
 			})

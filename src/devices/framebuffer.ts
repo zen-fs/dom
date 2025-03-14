@@ -43,8 +43,8 @@ export const framebuffer: DeviceDriver<FramebufferData> = {
 			name: 'fb',
 		};
 	},
-	readD() {},
-	writeD({ data: { image, context } }: Device<FramebufferData>, buffer, offset) {
+	read() {},
+	write({ data: { image, context } }: Device<FramebufferData>, buffer, offset) {
 		image.data.set(buffer, offset);
 		context.putImageData(image, 0, 0);
 		return buffer.byteLength;

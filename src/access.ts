@@ -1,7 +1,7 @@
-import type { Backend, CreationOptions, FileSystem } from '@zenfs/core';
+import type { Backend, CreationOptions, FileSystem, InodeLike } from '@zenfs/core';
 import { Async, constants, Errno, ErrnoError, IndexFS, InMemory, Inode, log } from '@zenfs/core';
+import { basename, dirname, join } from '@zenfs/core/path.js';
 import { S_IFDIR, S_IFMT } from '@zenfs/core/vfs/constants.js';
-import { basename, dirname, join } from '@zenfs/core/vfs/path.js';
 import { _throw } from 'utilium';
 import { convertException } from './utils.js';
 
@@ -76,12 +76,11 @@ export class WebAccessFS extends Async(IndexFS) {
 	/**
 	 * @hidden
 	 */
-	_sync: FileSystem = InMemory.create({ name: 'accessfs-cache' });
+	_sync: FileSystem = InMemory.create({ label: 'accessfs-cache' });
 
 	public constructor(handle: FileSystemDirectoryHandle) {
 		super(0x77656261, 'webaccessfs');
 		this.attributes.set('no_buffer_resize');
-		this.attributes.set('setid');
 		this._handles.set('/', handle);
 	}
 
@@ -159,11 +158,12 @@ export class WebAccessFS extends Async(IndexFS) {
 		return this.write(path, data, 0);
 	}
 
-	public async mkdir(path: string, mode: number, options: CreationOptions): Promise<void> {
-		await super.mkdir(path, mode, options);
+	public async mkdir(path: string, options: CreationOptions): Promise<InodeLike> {
+		const inode = await super.mkdir(path, options);
 		const handle = this.get('directory', dirname(path), 'mkdir');
 		const dir = await handle.getDirectoryHandle(basename(path), { create: true }).catch((ex: DOMException) => _throw(convertException(ex, path)));
 		this._handles.set(path, dir);
+		return inode;
 	}
 
 	protected get<const T extends FileSystemHandleKind | null>(
