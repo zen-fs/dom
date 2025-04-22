@@ -1,7 +1,8 @@
 import type { Backend, CreationOptions, FileSystem, InodeLike } from '@zenfs/core';
-import { Async, constants, Errno, ErrnoError, IndexFS, InMemory, Inode, log } from '@zenfs/core';
+import { Async, constants, IndexFS, InMemory, Inode } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/path.js';
 import { S_IFDIR, S_IFMT } from '@zenfs/core/vfs/constants.js';
+import { log, withErrno } from 'kerium';
 import { _throw } from 'utilium';
 import { convertException } from './utils.js';
 
@@ -67,7 +68,7 @@ export class WebAccessFS extends Async(IndexFS) {
 				continue;
 			}
 
-			if (!isKind(handle, 'directory')) throw new ErrnoError(Errno.EIO, 'Invalid handle', path);
+			if (!isKind(handle, 'directory')) throw withErrno('EIO', 'Invalid handle');
 
 			this.index.set(path, new Inode({ mode: 0o777 | constants.S_IFDIR, size: 0 }));
 		}
@@ -80,7 +81,7 @@ export class WebAccessFS extends Async(IndexFS) {
 
 	public constructor(handle: FileSystemDirectoryHandle) {
 		super(0x77656261, 'webaccessfs');
-		this.attributes.set('no_buffer_resize');
+		this.attributes.set('no_buffer_resize', true);
 		this._handles.set('/', handle);
 	}
 
@@ -89,18 +90,18 @@ export class WebAccessFS extends Async(IndexFS) {
 		await handle.removeEntry(basename(path), { recursive: true }).catch(ex => _throw(convertException(ex, path)));
 	}
 
-	protected removeSync(path: string): void {
-		throw log.crit(ErrnoError.With('ENOSYS', path));
+	protected removeSync(): void {
+		throw log.crit(withErrno('ENOSYS'));
 	}
 
 	public async read(path: string, buffer: Uint8Array, offset: number, end: number): Promise<void> {
 		if (end <= offset) return;
-		const handle = this.get('file', path, 'write');
+		const handle = this.get('file', path);
 
 		const file = await handle.getFile();
 		const data = await file.arrayBuffer();
 
-		if (data.byteLength < end - offset) throw ErrnoError.With('ENODATA', path, 'read');
+		if (data.byteLength < end - offset) throw withErrno('ENODATA');
 
 		buffer.set(new Uint8Array(data, offset, end - offset));
 	}
@@ -113,15 +114,15 @@ export class WebAccessFS extends Async(IndexFS) {
 		}
 
 		const inode = this.index.get(path);
-		if (!inode) throw ErrnoError.With('ENOENT', path, 'write');
+		if (!inode) throw withErrno('ENOENT');
 
 		const isDir = (inode.mode & S_IFMT) == S_IFDIR;
 
 		let handle: FileSystemFileHandle | FileSystemDirectoryHandle;
 		try {
-			handle = this.get(isDir ? 'directory' : 'file', path, 'write');
+			handle = this.get(isDir ? 'directory' : 'file', path);
 		} catch {
-			const parent = this.get('directory', dirname(path), 'write');
+			const parent = this.get('directory', dirname(path));
 			handle = await parent[isDir ? 'getDirectoryHandle' : 'getFileHandle'](basename(path), { create: true }).catch((ex: DOMException) =>
 				_throw(convertException(ex, path))
 			);
@@ -131,7 +132,7 @@ export class WebAccessFS extends Async(IndexFS) {
 		if (isDir) return;
 
 		if (isKind(handle, 'directory')) {
-			log.crit(new ErrnoError(Errno.EIO, 'Mismatch in entry kind on write', path, 'write'));
+			log.crit(withErrno('EIO', 'Mismatch in entry kind on write'));
 			return;
 		}
 
@@ -160,7 +161,7 @@ export class WebAccessFS extends Async(IndexFS) {
 
 	public async mkdir(path: string, options: CreationOptions): Promise<InodeLike> {
 		const inode = await super.mkdir(path, options);
-		const handle = this.get('directory', dirname(path), 'mkdir');
+		const handle = this.get('directory', dirname(path));
 		const dir = await handle.getDirectoryHandle(basename(path), { create: true }).catch((ex: DOMException) => _throw(convertException(ex, path)));
 		this._handles.set(path, dir);
 		return inode;
@@ -168,13 +169,12 @@ export class WebAccessFS extends Async(IndexFS) {
 
 	protected get<const T extends FileSystemHandleKind | null>(
 		kind: T = null as T,
-		path: string,
-		syscall?: string
+		path: string
 	): T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle {
 		const handle = this._handles.get(path);
-		if (!handle) throw ErrnoError.With('ENODATA', path, syscall);
+		if (!handle) throw withErrno('ENODATA');
 
-		if (kind && !isKind(handle, kind)) throw ErrnoError.With(kind == 'directory' ? 'ENOTDIR' : 'EISDIR', path, syscall);
+		if (kind && !isKind(handle, kind)) throw withErrno(kind == 'directory' ? 'ENOTDIR' : 'EISDIR');
 
 		return handle as T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle;
 	}

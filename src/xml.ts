@@ -1,5 +1,6 @@
 import type { Backend, CreationOptions, InodeLike, StatsLike } from '@zenfs/core';
-import { _inode_fields, constants, Errno, ErrnoError, FileSystem, Inode, Sync } from '@zenfs/core';
+import { withErrno, type Exception } from 'kerium';
+import { _inode_fields, constants, FileSystem, Inode, Sync } from '@zenfs/core';
 import { basename, dirname } from '@zenfs/core/path.js';
 import { decodeASCII, encodeASCII } from 'utilium';
 export interface XMLOptions {
@@ -48,7 +49,7 @@ export class XMLFS extends Sync(FileSystem) {
 		try {
 			this.mkdirSync('/', { uid: 0, gid: 0, mode: 0o777 });
 		} catch (e: any) {
-			const error = e as ErrnoError;
+			const error = e as Exception;
 			if (error.code != 'EEXIST') throw error;
 		}
 	}
@@ -76,14 +77,14 @@ export class XMLFS extends Sync(FileSystem) {
 
 	public unlinkSync(path: string): void {
 		const node = this.get('unlink', path);
-		if (get_stats(node).mode & constants.S_IFDIR) throw ErrnoError.With('EISDIR', path, 'unlink');
+		if (get_stats(node).mode & constants.S_IFDIR) throw withErrno('EISDIR');
 		this.remove('unlink', node, path);
 	}
 
 	public rmdirSync(path: string): void {
 		const node = this.get('rmdir', path);
-		if (node.textContent?.length) throw ErrnoError.With('ENOTEMPTY', path, 'rmdir');
-		if (!(get_stats(node).mode & constants.S_IFDIR)) throw ErrnoError.With('ENOTDIR', path, 'rmdir');
+		if (node.textContent?.length) throw withErrno('ENOTEMPTY');
+		if (!(get_stats(node).mode & constants.S_IFDIR)) throw withErrno('ENOTDIR');
 		this.remove('rmdir', node, path);
 	}
 
@@ -100,11 +101,11 @@ export class XMLFS extends Sync(FileSystem) {
 
 	public readdirSync(path: string): string[] {
 		const node = this.get('readdir', path);
-		if (!(get_stats(node).mode & constants.S_IFDIR)) throw ErrnoError.With('ENOTDIR', path, 'rmdir');
+		if (!(get_stats(node).mode & constants.S_IFDIR)) throw withErrno('ENOTDIR');
 		try {
 			return JSON.parse(node.textContent!) as string[];
 		} catch (e) {
-			throw new ErrnoError(Errno.EIO, 'Invalid directory listing: ' + e, path, 'readdir');
+			throw withErrno('EIO', 'Invalid directory listing: ' + e);
 		}
 	}
 
@@ -139,15 +140,15 @@ export class XMLFS extends Sync(FileSystem) {
 
 	protected get(syscall: string, path: string): Element {
 		const nodes = this.root.children;
-		if (!nodes) throw ErrnoError.With('EIO', path, syscall);
+		if (!nodes) throw withErrno('EIO');
 		for (let i = 0; i < nodes.length; i++) {
 			if (get_paths(nodes[i]).includes(path)) return nodes[i];
 		}
-		throw ErrnoError.With('ENOENT', path, syscall);
+		throw withErrno('ENOENT');
 	}
 
 	protected create(syscall: string, path: string, stats: Partial<InodeLike> & Pick<StatsLike, 'mode'>): Element {
-		if (this.existsSync(path)) throw ErrnoError.With('EEXIST', path, syscall);
+		if (this.existsSync(path)) throw withErrno('EEXIST');
 		const node = document.createElement('file');
 		this.add(syscall, node, path);
 		set_stats(

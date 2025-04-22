@@ -1,5 +1,6 @@
 import type { Backend, Store, SyncMapStore } from '@zenfs/core';
-import { Errno, ErrnoError, StoreFS, SyncMapTransaction } from '@zenfs/core';
+import { withErrno } from 'kerium';
+import { StoreFS, SyncMapTransaction } from '@zenfs/core';
 import { decodeASCII, encodeASCII } from 'utilium';
 
 /**
@@ -44,15 +45,15 @@ export class WebStorageStore implements Store, SyncMapStore {
 		try {
 			this.storage.setItem(key.toString(), decodeASCII(data));
 		} catch {
-			throw new ErrnoError(Errno.ENOSPC, 'Storage is full.');
+			throw withErrno('ENOSPC');
 		}
 	}
 
 	public delete(key: number): void {
 		try {
 			this.storage.removeItem(key.toString());
-		} catch (e) {
-			throw new ErrnoError(Errno.EIO, 'Unable to delete key ' + key + ': ' + e);
+		} catch (e: any) {
+			throw withErrno('EIO', `Unable to delete '${key}': ${e}`);
 		}
 	}
 }

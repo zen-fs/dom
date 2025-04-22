@@ -1,6 +1,6 @@
 /* Credit: David Konsumer */
 import type { Device, DeviceDriver } from '@zenfs/core';
-import { Errno, ErrnoError } from '@zenfs/core';
+import { withErrno } from 'kerium';
 
 export interface FramebufferOptions {
 	canvas?: HTMLCanvasElement | null;
@@ -31,7 +31,7 @@ export const framebuffer: DeviceDriver<FramebufferData> = {
 		const context = canvas.getContext('2d');
 
 		if (!context) {
-			throw new ErrnoError(Errno.EIO, 'Could not get context from canvas whilst initializing frame buffer.');
+			throw withErrno('EIO', 'Could not get context from canvas whilst initializing frame buffer.');
 		}
 
 		const image = new ImageData(canvas.width, canvas.height);

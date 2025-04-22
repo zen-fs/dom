@@ -1,4 +1,4 @@
-import { ErrnoError, Errno } from '@zenfs/core';
+import { Exception, Errno } from 'kerium';
 
 /**
  * Converts a DOMException into an Errno
@@ -56,18 +56,19 @@ function errnoForDOMException(ex: DOMException): keyof typeof Errno {
 }
 
 /** @internal */
-export type ConvertException = ErrnoError | DOMException | Error;
+export type ConvertException = Exception | DOMException | Error;
 
 /**
  * Handles converting errors, then rethrowing them
  * @internal
  */
-export function convertException(ex: ConvertException, path?: string, syscall?: string): ErrnoError {
-	if (ex instanceof ErrnoError) return ex;
+export function convertException(ex: ConvertException, path?: string): Exception {
+	if (ex instanceof Exception) return ex;
 
 	const code = ex instanceof DOMException ? Errno[errnoForDOMException(ex)] : Errno.EIO;
-	const error = new ErrnoError(code, ex.message, path, syscall);
+	const error = new Exception(code, ex.message);
 	error.stack = ex.stack!;
+	Error.captureStackTrace?.(error, convertException);
 	error.cause = ex.cause;
 	return error;
 }

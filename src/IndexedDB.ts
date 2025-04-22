@@ -1,5 +1,6 @@
 import type { Backend, SharedConfig, Store } from '@zenfs/core';
-import { AsyncTransaction, StoreFS, log } from '@zenfs/core';
+import { AsyncTransaction, StoreFS } from '@zenfs/core';
+import { log } from 'kerium';
 import type * as cache from 'utilium/cache.js';
 import { convertException } from './utils.js';
 
