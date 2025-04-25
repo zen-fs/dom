@@ -37,10 +37,10 @@ jobs:
               run: npm run build
 
             - name: Unit tests (IndexedDB)
-              run: npx zenfs-test tests/setup-idb.ts
+              run: npx zenfs-test tests/setup-idb.ts -fv
 
             - name: Unit tests (WebStorage)
-              run: npx zenfs-test tests/setup-storage.ts
+              run: npx zenfs-test tests/setup-storage.ts -v
 
             - name: Unit tests (WebAccess) - SKIPPED
               run: echo Skipped #npx zenfs-test tests/setup-access.ts
