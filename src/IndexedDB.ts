@@ -1,7 +1,6 @@
 import type { Backend, SharedConfig, Store } from '@zenfs/core';
-import { AsyncTransaction, StoreFS } from '@zenfs/core';
+import { StoreFS, Transaction } from '@zenfs/core';
 import { log } from 'kerium';
-import type * as cache from 'utilium/cache.js';
 import { convertException } from './utils.js';
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {
@@ -17,8 +16,18 @@ function wrap<T>(request: IDBRequest<T>): Promise<T> {
 /**
  * @internal @hidden
  */
-export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
+export class IndexedDBTransaction extends Transaction<IndexedDBStore> {
 	private _idb: IDBObjectStore;
+
+	protected asyncDone: Promise<unknown> = Promise.resolve();
+
+	/**
+	 * Run a asynchronous operation from a sync context. Not magic and subject to (race) conditions.
+	 * @internal
+	 */
+	protected async(promise: Promise<unknown>): void {
+		this.asyncDone = this.asyncDone.then(() => promise);
+	}
 
 	public constructor(
 		public tx: IDBTransaction,
@@ -33,22 +42,39 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 	}
 
 	public async get(id: number): Promise<Uint8Array | undefined> {
-		const data: Uint8Array | undefined = await wrap(this._idb.get(id.toString()));
-		if (data) this._cached(id, { size: data.byteLength })!.add(data, 0);
+		const data: Uint8Array | undefined = await wrap(this._idb.get(id));
+		if (data) this.store.cache.set(id, new Uint8Array(data));
 		return data;
 	}
 
+	public getSync(id: number, offset: number, end?: number): Uint8Array | undefined {
+		if (!this.store.cache.has(id)) return;
+		const data = new Uint8Array(this.store.cache.get(id)!);
+		end ??= data.byteLength;
+		return data.subarray(offset, end);
+	}
+
 	public async set(id: number, data: Uint8Array): Promise<void> {
-		this._cached(id, { size: data.byteLength })!.add(data, 0);
-		await wrap(this._idb.put(data, id.toString()));
+		this.store.cache.set(id, new Uint8Array(data));
+		await wrap(this._idb.put(data, id));
+	}
+
+	public setSync(id: number, data: Uint8Array): void {
+		this.async(this.set(id, data));
 	}
 
 	public remove(id: number): Promise<void> {
 		this.store.cache.delete(id);
-		return wrap(this._idb.delete(id.toString()));
+		return wrap(this._idb.delete(id));
+	}
+
+	public removeSync(id: number): void {
+		this.store.cache.delete(id);
+		this.async(this.remove(id));
 	}
 
 	public async commit(): Promise<void> {
+		await this.asyncDone;
 		const { promise, resolve, reject } = Promise.withResolvers<void>();
 		this.tx.oncomplete = () => resolve();
 		this.tx.onerror = () => reject(convertException(this.tx.error!));
@@ -57,6 +83,7 @@ export class IndexedDBTransaction extends AsyncTransaction<IndexedDBStore> {
 	}
 
 	public async abort(): Promise<void> {
+		await this.asyncDone;
 		const { promise, resolve, reject } = Promise.withResolvers<void>();
 		this.tx.onabort = () => resolve();
 		this.tx.onerror = () => reject(convertException(this.tx.error!));
@@ -82,7 +109,7 @@ async function createDB(name: string, indexedDB: IDBFactory = globalThis.indexed
 }
 
 export class IndexedDBStore implements Store {
-	cache = new Map<number, cache.Resource<number>>();
+	cache = new Map<number, Uint8Array>();
 
 	public constructor(protected db: IDBDatabase) {}
 

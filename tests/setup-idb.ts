@@ -1,12 +1,12 @@
 import 'fake-indexeddb/auto';
 
 import { configureSingle } from '@zenfs/core';
-import { copySync, data } from '@zenfs/core/tests/setup.js';
+import { copyAsync, data } from '@zenfs/core/tests/setup.js';
 import { after } from 'node:test';
 import { IndexedDB } from '../src/IndexedDB.js';
 
-await configureSingle({ backend: IndexedDB, storeName: 'test', disableAsyncCache: true });
-copySync(data);
+await configureSingle({ backend: IndexedDB, storeName: 'test' });
+await copyAsync(data);
 
 after(() => {
 	indexedDB.deleteDatabase('test');
