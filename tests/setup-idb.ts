@@ -1,17 +1,19 @@
 import 'fake-indexeddb/auto';
 
 import { configureSingle } from '@zenfs/core';
+import { copySync, data } from '@zenfs/core/tests/setup.js';
+import { after } from 'node:test';
 import { IndexedDB } from '../src/IndexedDB.js';
-import { copyAsync, data } from '@zenfs/core/tests/setup.js';
 
-await configureSingle({ backend: IndexedDB, storeName: 'test' });
+await configureSingle({ backend: IndexedDB, storeName: 'test', disableAsyncCache: true });
+copySync(data);
 
-await copyAsync(data);
-
-/**
- * @todo Actually fix whatever is preventing the process from exiting
- */
-setTimeout(() => {
+after(() => {
 	indexedDB.deleteDatabase('test');
-	process.exit(0);
-}, 5_000);
+
+	/**
+	 * @todo Actually fix whatever is preventing the process from exiting
+	 */
+	// @ts-expect-error 2339
+	for (const handle of process._getActiveHandles()) handle.unref();
+});
