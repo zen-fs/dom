@@ -3,6 +3,7 @@ import { Async, constants, IndexFS, InMemory, Inode } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/path.js';
 import { S_IFDIR, S_IFMT } from '@zenfs/core/vfs/constants.js';
 import { log, withErrno } from 'kerium';
+import { alert } from 'kerium/log';
 import { _throw } from 'utilium';
 import { convertException } from './utils.js';
 
@@ -85,7 +86,7 @@ export class WebAccessFS extends Async(IndexFS) {
 		this._handles.set('/', handle);
 	}
 
-	public async remove(path: string): Promise<void> {
+	protected async remove(path: string): Promise<void> {
 		const handle = this.get('directory', dirname(path));
 		await handle.removeEntry(basename(path), { recursive: true }).catch(ex => _throw(convertException(ex, path)));
 	}
@@ -101,7 +102,13 @@ export class WebAccessFS extends Async(IndexFS) {
 		const file = await handle.getFile();
 		const data = await file.arrayBuffer();
 
-		if (data.byteLength < end - offset) throw withErrno('ENODATA');
+		if (data.byteLength < end - offset)
+			throw alert(
+				withErrno(
+					'EIO',
+					`Unexpected mismatch in file data size. This should not happen.\n\t\tTried to read ${end - offset} bytes but the file is ${data.byteLength} bytes.`
+				)
+			);
 
 		buffer.set(new Uint8Array(data, offset, end - offset));
 	}
