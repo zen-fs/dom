@@ -38,7 +38,7 @@ export class IndexedDBTransaction extends Transaction<IndexedDBStore> {
 	}
 
 	public async keys(): Promise<Iterable<number>> {
-		return (await wrap(this._idb.getAllKeys())).filter(k => typeof k == 'string').map(k => Number(k));
+		return (await wrap(this._idb.getAllKeys())).map(Number);
 	}
 
 	public async get(id: number): Promise<Uint8Array | undefined> {
