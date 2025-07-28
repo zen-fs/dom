@@ -143,6 +143,26 @@ export interface IndexedDBOptions {
 }
 
 /**
+ * Used to memoize the availability test result
+ */
+const idbTests = new WeakMap<IDBFactory, Promise<boolean>>();
+
+async function testAvailability(idbFactory: IDBFactory): Promise<boolean> {
+	if (!(idbFactory instanceof IDBFactory)) return false;
+
+	try {
+		const req = idbFactory.open('__zenfs_test');
+
+		await wrap(req);
+		return true;
+	} catch {
+		return false;
+	} finally {
+		idbFactory?.deleteDatabase('__zenfs_test');
+	}
+}
+
+/**
  * A file system that uses the IndexedDB key value file system.
  */
 
@@ -155,17 +175,10 @@ const _IndexedDB = {
 	},
 
 	async isAvailable({ idbFactory = globalThis.indexedDB }: IndexedDBOptions): Promise<boolean> {
-		try {
-			if (!(idbFactory instanceof IDBFactory)) return false;
-
-			const req = idbFactory.open('__zenfs_test');
-			await wrap(req);
-			return true;
-		} catch {
-			return false;
-		} finally {
-			idbFactory?.deleteDatabase('__zenfs_test');
-		}
+		if (idbTests.has(idbFactory)) return idbTests.get(idbFactory)!;
+		const result = testAvailability(idbFactory);
+		idbTests.set(idbFactory, result);
+		return result;
 	},
 
 	async create(options: IndexedDBOptions & Partial<SharedConfig>): Promise<StoreFS<IndexedDBStore>> {
