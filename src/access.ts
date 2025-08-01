@@ -166,9 +166,30 @@ export class WebAccessFS extends Async(IndexFS) {
 		return this.write(path, data, 0);
 	}
 
+	private async getDirectoryHandle(path: string): Promise<FileSystemDirectoryHandle> {
+		let currHandle = this._handles.get('/');
+		const segments = path.split('/').filter(Boolean);
+
+		for (let segment of segments) {
+			currHandle = await (currHandle as FileSystemDirectoryHandle).getDirectoryHandle(segment);
+		}
+
+		return currHandle as FileSystemDirectoryHandle;
+	}
+
 	public async mkdir(path: string, options: CreationOptions): Promise<InodeLike> {
 		const inode = await super.mkdir(path, options);
-		const handle = this.get('directory', dirname(path));
+		let handle;
+		try {
+			handle = this.get('directory', dirname(path));
+		} catch (e) {
+			try {
+				handle = await this.getDirectoryHandle(dirname(path));
+				this._handles.set(dirname(path), handle);
+			} catch (e2) {
+				throw e;
+			}
+		}
 		const dir = await handle.getDirectoryHandle(basename(path), { create: true }).catch((ex: DOMException) => _throw(convertException(ex, path)));
 		this._handles.set(path, dir);
 		return inode;
