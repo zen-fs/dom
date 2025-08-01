@@ -96,28 +96,11 @@ export class WebAccessFS extends Async(IndexFS) {
 	}
 
 	public async read(path: string, buffer: Uint8Array, offset: number, end: number): Promise<void> {
-		if (path.endsWith('025')) {
-			console.log({ path });
-		}
 		if (end <= offset) return;
-		let handle;
-		try {
-			handle = this.get('file', path);
-		} catch (e) {
-			console.log({ easdlkfjasldkjfasldkjf: e });
-			throw e;
-		}
-		if (path.endsWith('025')) {
-			console.log({ handle });
-		}
+		const handle = this.get('file', path);
 
 		const file = await handle.getFile();
 		const data = await file.arrayBuffer();
-
-		if (path.endsWith('025')) {
-			const decoder = new TextDecoder('utf-8');
-			console.log({ data: decoder.decode(data), path });
-		}
 
 		if (data.byteLength < end - offset)
 			throw alert(
@@ -194,19 +177,6 @@ export class WebAccessFS extends Async(IndexFS) {
 		return currHandle as FileSystemDirectoryHandle;
 	}
 
-	private async getFileHandle(path: string): Promise<FileSystemFileHandle> {
-		let currHandle = this._handles.get('/');
-		const segments = path.split('/').filter(Boolean);
-		const filename = segments.pop() as string;
-
-		for (let segment of segments) {
-			currHandle = await (currHandle as FileSystemDirectoryHandle).getDirectoryHandle(segment);
-		}
-		currHandle = await (currHandle as FileSystemDirectoryHandle).getFileHandle(filename);
-
-		return currHandle as FileSystemFileHandle;
-	}
-
 	public async mkdir(path: string, options: CreationOptions): Promise<InodeLike> {
 		const inode = await super.mkdir(path, options);
 		let handle;
@@ -215,9 +185,9 @@ export class WebAccessFS extends Async(IndexFS) {
 		} catch (e) {
 			try {
 				handle = await this.getDirectoryHandle(dirname(path));
-			} catch (r) {
-				console.log({ r });
-				throw r;
+				this._handles.set(dirname(path), handle);
+			} catch (e2) {
+				throw e;
 			}
 		}
 		const dir = await handle.getDirectoryHandle(basename(path), { create: true }).catch((ex: DOMException) => _throw(convertException(ex, path)));
