@@ -10,6 +10,11 @@ import { convertException } from './utils.js';
 export interface WebAccessOptions {
 	handle: FileSystemDirectoryHandle;
 	metadata?: string;
+	/**
+	 * If set, disables caching of file system handles.
+	 * This could significantly degrade lookup performance.
+	 */
+	disableHandleCache?: boolean;
 }
 
 function isResizable(buffer: ArrayBufferLike): boolean {
@@ -33,6 +38,10 @@ function isKind<const T extends FileSystemHandleKind>(handle: FileSystemHandle, 
 	return handle.kind == kind;
 }
 
+/**
+ * @todo Consider supporting synchronous stuff with `FileSystemFileHandle.createSyncAccessHandle()`\
+ * @internal
+ */
 export class WebAccessFS extends Async(IndexFS) {
 	/**
 	 * Used to speed up handle lookups.
@@ -85,10 +94,14 @@ export class WebAccessFS extends Async(IndexFS) {
 	 */
 	_sync: FileSystem = InMemory.create({ label: 'accessfs-cache' });
 
-	public constructor(handle: FileSystemDirectoryHandle) {
+	public constructor(
+		protected readonly root: FileSystemDirectoryHandle,
+		protected readonly disableHandleCache = false
+	) {
 		super(0x77656261, 'webaccessfs');
 		this.attributes.set('no_buffer_resize', true);
-		this._handles.set('/', handle);
+		if (!disableHandleCache) this._handles.set('/', root);
+		else this.attributes.set('no_handle_cache', true);
 	}
 
 	protected async remove(path: string): Promise<void> {
@@ -138,7 +151,7 @@ export class WebAccessFS extends Async(IndexFS) {
 			handle = await parent[isDir ? 'getDirectoryHandle' : 'getFileHandle'](basename(path), { create: true }).catch((ex: DOMException) =>
 				_throw(convertException(ex, path))
 			);
-			this._handles.set(path, handle);
+			if (!this.disableHandleCache) this._handles.set(path, handle);
 		}
 
 		if (isDir) return;
@@ -175,23 +188,40 @@ export class WebAccessFS extends Async(IndexFS) {
 		const inode = await super.mkdir(path, options);
 		const handle = await this.get('directory', dirname(path));
 		const dir = await handle.getDirectoryHandle(basename(path), { create: true }).catch((ex: DOMException) => _throw(convertException(ex, path)));
-		this._handles.set(path, dir);
+		if (!this.disableHandleCache) this._handles.set(path, dir);
 		return inode;
 	}
 
-	/**
-	 * @todo Consider supporting synchronous stuff with `FileSystemFileHandle.createSyncAccessHandle()`
-	 */
 	protected async get<const T extends FileSystemHandleKind | null>(
 		kind: T = null as T,
 		path: string
 	): Promise<T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle> {
-		const handle = this._handles.get(path);
-		if (!handle) throw withErrno('ENODATA');
+		type _Result = T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle;
 
-		if (kind && !isKind(handle, kind)) throw withErrno(kind == 'directory' ? 'ENOTDIR' : 'EISDIR');
+		if (!this.disableHandleCache) {
+			const handle = this._handles.get(path);
+			if (!handle) throw withErrno('ENODATA');
 
-		return handle as T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle;
+			if (kind && !isKind(handle, kind)) throw withErrno(kind == 'directory' ? 'ENOTDIR' : 'EISDIR');
+
+			return handle as _Result;
+		}
+
+		if (path == '/') return this.root as _Result;
+
+		const parts = path.slice(1).split('/');
+		let dir: FileSystemDirectoryHandle = this.root;
+		for (let i = 0; i < parts.length - 1; ++i) {
+			dir = await dir.getDirectoryHandle(parts[i]).catch(ex => _throw(convertException(ex, path)));
+		}
+
+		try {
+			const handle = await dir[kind == 'file' ? 'getFileHandle' : 'getDirectoryHandle'](parts.at(-1)!);
+			return handle as _Result;
+		} catch (ex: any) {
+			if (ex.name == 'TypeMismatchError') throw withErrno(kind == 'file' ? 'EISDIR' : 'ENOTDIR');
+			else throw convertException(ex, path);
+		}
 	}
 }
 
@@ -201,10 +231,12 @@ const _WebAccess = {
 	options: {
 		handle: { type: 'object', required: true },
 		metadata: { type: 'string', required: false },
+		disableHandleCache: { type: 'boolean', required: false },
 	},
 
 	async create(options: WebAccessOptions) {
-		const fs = new WebAccessFS(options.handle);
+		const fs = new WebAccessFS(options.handle, options.disableHandleCache);
+		if (options.disableHandleCache) return fs;
 		await fs._loadHandles('/', options.handle);
 		await fs._loadMetadata(options.metadata);
 		return fs;
