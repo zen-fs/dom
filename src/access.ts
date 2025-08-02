@@ -34,6 +34,11 @@ function isKind<const T extends FileSystemHandleKind>(handle: FileSystemHandle, 
 }
 
 export class WebAccessFS extends Async(IndexFS) {
+	/**
+	 * Used to speed up handle lookups.
+	 * Without this, every lookup would be O(n) on the path length.
+	 * With the cache, these become O(1) operations.
+	 */
 	protected _handles = new Map<string, FileSystemHandle>();
 
 	/**
@@ -54,7 +59,7 @@ export class WebAccessFS extends Async(IndexFS) {
 	 */
 	async _loadMetadata(metadataPath?: string): Promise<void> {
 		if (metadataPath) {
-			const handle = this.get('file', metadataPath);
+			const handle = await this.get('file', metadataPath);
 			const file = await handle.getFile();
 			const raw = await file.text();
 			const data = JSON.parse(raw);
@@ -87,7 +92,7 @@ export class WebAccessFS extends Async(IndexFS) {
 	}
 
 	protected async remove(path: string): Promise<void> {
-		const handle = this.get('directory', dirname(path));
+		const handle = await this.get('directory', dirname(path));
 		await handle.removeEntry(basename(path), { recursive: true }).catch(ex => _throw(convertException(ex, path)));
 	}
 
@@ -97,7 +102,7 @@ export class WebAccessFS extends Async(IndexFS) {
 
 	public async read(path: string, buffer: Uint8Array, offset: number, end: number): Promise<void> {
 		if (end <= offset) return;
-		const handle = this.get('file', path);
+		const handle = await this.get('file', path);
 
 		const file = await handle.getFile();
 		const data = await file.arrayBuffer();
@@ -127,9 +132,9 @@ export class WebAccessFS extends Async(IndexFS) {
 
 		let handle: FileSystemFileHandle | FileSystemDirectoryHandle;
 		try {
-			handle = this.get(isDir ? 'directory' : 'file', path);
+			handle = await this.get(isDir ? 'directory' : 'file', path);
 		} catch {
-			const parent = this.get('directory', dirname(path));
+			const parent = await this.get('directory', dirname(path));
 			handle = await parent[isDir ? 'getDirectoryHandle' : 'getFileHandle'](basename(path), { create: true }).catch((ex: DOMException) =>
 				_throw(convertException(ex, path))
 			);
@@ -168,16 +173,19 @@ export class WebAccessFS extends Async(IndexFS) {
 
 	public async mkdir(path: string, options: CreationOptions): Promise<InodeLike> {
 		const inode = await super.mkdir(path, options);
-		const handle = this.get('directory', dirname(path));
+		const handle = await this.get('directory', dirname(path));
 		const dir = await handle.getDirectoryHandle(basename(path), { create: true }).catch((ex: DOMException) => _throw(convertException(ex, path)));
 		this._handles.set(path, dir);
 		return inode;
 	}
 
-	protected get<const T extends FileSystemHandleKind | null>(
+	/**
+	 * @todo Consider supporting synchronous stuff with `FileSystemFileHandle.createSyncAccessHandle()`
+	 */
+	protected async get<const T extends FileSystemHandleKind | null>(
 		kind: T = null as T,
 		path: string
-	): T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle {
+	): Promise<T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle> {
 		const handle = this._handles.get(path);
 		if (!handle) throw withErrno('ENODATA');
 
