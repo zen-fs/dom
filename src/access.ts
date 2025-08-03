@@ -54,7 +54,7 @@ export class WebAccessFS extends Async(IndexFS) {
 	 * Loads all of the handles.
 	 * @internal @hidden
 	 */
-	async _loadHandles(path: string, handle: FileSystemDirectoryHandle) {
+	protected async _loadHandles(path: string, handle: FileSystemDirectoryHandle) {
 		for await (const [key, child] of handle.entries()) {
 			const p = join(path, key);
 			this._handles.set(p, child);
@@ -67,6 +67,9 @@ export class WebAccessFS extends Async(IndexFS) {
 	 * @internal @hidden
 	 */
 	async _loadMetadata(metadataPath?: string): Promise<void> {
+		this._handles.set('/', this.root);
+		await this._loadHandles('/', this.root);
+
 		if (metadataPath) {
 			const handle = await this.get('file', metadataPath);
 			const file = await handle.getFile();
@@ -100,8 +103,7 @@ export class WebAccessFS extends Async(IndexFS) {
 	) {
 		super(0x77656261, 'webaccessfs');
 		this.attributes.set('no_buffer_resize', true);
-		if (!disableHandleCache) this._handles.set('/', root);
-		else this.attributes.set('no_handle_cache', true);
+		if (disableHandleCache) this.attributes.set('no_handle_cache', true);
 	}
 
 	protected async remove(path: string): Promise<void> {
@@ -200,7 +202,7 @@ export class WebAccessFS extends Async(IndexFS) {
 
 		if (!this.disableHandleCache) {
 			const handle = this._handles.get(path);
-			if (!handle) throw withErrno('ENODATA');
+			if (!handle) throw withErrno('ENOENT');
 
 			if (kind && !isKind(handle, kind)) throw withErrno(kind == 'directory' ? 'ENOTDIR' : 'EISDIR');
 
@@ -235,9 +237,7 @@ const _WebAccess = {
 	},
 
 	async create(options: WebAccessOptions) {
-		const fs = new WebAccessFS(options.handle, options.disableHandleCache);
-		if (options.disableHandleCache) return fs;
-		await fs._loadHandles('/', options.handle);
+		const fs = new WebAccessFS(options.handle);
 		await fs._loadMetadata(options.metadata);
 		return fs;
 	},
