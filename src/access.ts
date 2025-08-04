@@ -1,7 +1,6 @@
 import type { Backend, CreationOptions, FileSystem, InodeLike } from '@zenfs/core';
 import { Async, constants, IndexFS, InMemory, Inode } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/path.js';
-import { S_IFDIR, S_IFMT } from '@zenfs/core/vfs/constants.js';
 import { log, withErrno } from 'kerium';
 import { alert } from 'kerium/log';
 import { _throw } from 'utilium';
@@ -126,7 +125,11 @@ export class WebAccessFS extends Async(IndexFS) {
 			throw alert(
 				withErrno(
 					'EIO',
-					`Unexpected mismatch in file data size. This should not happen.\n\t\tTried to read ${end - offset} bytes but the file is ${data.byteLength} bytes.`
+					[
+						'Unexpected mismatch in file data size. This should not happen.',
+						`tried to read ${end - offset} bytes but the file is ${data.byteLength} bytes.`,
+						`path: ${path}`,
+					].join('\n' + ' '.repeat(24))
 				)
 			);
 
@@ -143,7 +146,7 @@ export class WebAccessFS extends Async(IndexFS) {
 		const inode = this.index.get(path);
 		if (!inode) throw withErrno('ENOENT');
 
-		const isDir = (inode.mode & S_IFMT) == S_IFDIR;
+		const isDir = (inode.mode & constants.S_IFMT) == constants.S_IFDIR;
 
 		let handle: FileSystemFileHandle | FileSystemDirectoryHandle;
 		try {
@@ -237,7 +240,7 @@ const _WebAccess = {
 	},
 
 	async create(options: WebAccessOptions) {
-		const fs = new WebAccessFS(options.handle);
+		const fs = new WebAccessFS(options.handle, options.disableHandleCache);
 		await fs._loadMetadata(options.metadata);
 		return fs;
 	},
