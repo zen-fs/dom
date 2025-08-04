@@ -24,7 +24,7 @@ function isResizable(buffer: ArrayBufferLike): boolean {
 	return false;
 }
 
-type HKindToType<T extends FileSystemHandleKind> = T extends 'directory'
+type HKindToType<T extends FileSystemHandleKind | null> = T extends 'directory'
 	? FileSystemDirectoryHandle
 	: T extends 'file'
 		? FileSystemFileHandle
@@ -229,11 +229,8 @@ export class WebAccessFS extends Async(IndexFS) {
 		return inode;
 	}
 
-	protected async get<const T extends FileSystemHandleKind | null>(
-		kind: T = null as T,
-		path: string
-	): Promise<T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle> {
-		type _Result = T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle;
+	protected async get<const T extends FileSystemHandleKind | null>(kind: T = null as T, path: string): Promise<HKindToType<T>> {
+		type _Result = HKindToType<T>;
 
 		const maybeHandle = this._handles.get(path);
 		if (!this.disableHandleCache && maybeHandle) {
@@ -255,8 +252,14 @@ export class WebAccessFS extends Async(IndexFS) {
 			if (!this.disableHandleCache) this._handles.set(path, handle);
 			return handle as _Result;
 		} catch (ex: any) {
-			if (ex.name == 'TypeMismatchError') throw withErrno(kind == 'file' ? 'EISDIR' : 'ENOTDIR');
-			else throw convertException(ex, path);
+			if (ex.name != 'TypeMismatchError') throw convertException(ex, path);
+			else if (kind === null) {
+				const handle = await dir[kind == 'file' ? 'getDirectoryHandle' : 'getFileHandle'](parts.at(-1)!).catch(ex =>
+					_throw(convertException(ex, path))
+				);
+				if (!this.disableHandleCache) this._handles.set(path, handle);
+				return handle as _Result;
+			} else throw withErrno(kind == 'file' ? 'EISDIR' : 'ENOTDIR');
 		}
 	}
 }
