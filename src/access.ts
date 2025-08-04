@@ -203,13 +203,11 @@ export class WebAccessFS extends Async(IndexFS) {
 	): Promise<T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle> {
 		type _Result = T extends FileSystemHandleKind ? HKindToType<T> : FileSystemHandle;
 
-		if (!this.disableHandleCache) {
-			const handle = this._handles.get(path);
-			if (!handle) throw withErrno('ENOENT');
-
-			if (kind && !isKind(handle, kind)) throw withErrno(kind == 'directory' ? 'ENOTDIR' : 'EISDIR');
-
-			return handle as _Result;
+		const maybeHandle = this._handles.get(path);
+		if (!this.disableHandleCache && maybeHandle) {
+			if (kind && !isKind(maybeHandle, kind)) throw withErrno(kind == 'directory' ? 'ENOTDIR' : 'EISDIR');
+			return maybeHandle as _Result;
+			// Otherwise, fall through to the slow path
 		}
 
 		if (path == '/') return this.root as _Result;
