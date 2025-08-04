@@ -254,9 +254,7 @@ export class WebAccessFS extends Async(IndexFS) {
 		} catch (ex: any) {
 			if (ex.name != 'TypeMismatchError') throw convertException(ex, path);
 			else if (kind === null) {
-				const handle = await dir[kind == 'file' ? 'getDirectoryHandle' : 'getFileHandle'](parts.at(-1)!).catch(ex =>
-					_throw(convertException(ex, path))
-				);
+				const handle = await dir.getFileHandle(parts.at(-1)!).catch(ex => _throw(convertException(ex, path)));
 				if (!this.disableHandleCache) this._handles.set(path, handle);
 				return handle as _Result;
 			} else throw withErrno(kind == 'file' ? 'EISDIR' : 'ENOTDIR');
