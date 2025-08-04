@@ -105,6 +105,38 @@ export class WebAccessFS extends Async(IndexFS) {
 		if (disableHandleCache) this.attributes.set('no_handle_cache', true);
 	}
 
+	async stat(path: string): Promise<Inode> {
+		try {
+			return await super.stat(path);
+		} catch (ex: any) {
+			if (ex.code != 'ENOENT') throw ex;
+
+			// This handle must have been created after initialization
+			// Try to add a new inode for the handle to the index
+
+			const handle = await this.get(null, path);
+			const inode = new Inode();
+
+			if (isKind(handle, 'file')) {
+				const file = await handle.getFile();
+				inode.update({
+					mode: 0o644 | constants.S_IFREG,
+					size: file.size,
+					mtimeMs: file.lastModified,
+				});
+			} else {
+				inode.update({
+					mode: constants.S_IFDIR | 0o777,
+					size: 0,
+				});
+			}
+
+			this.index.set(path, inode);
+
+			return inode;
+		}
+	}
+
 	protected async remove(path: string): Promise<void> {
 		const handle = await this.get('directory', dirname(path));
 		await handle.removeEntry(basename(path), { recursive: true }).catch(ex => _throw(convertException(ex, path)));
@@ -220,6 +252,7 @@ export class WebAccessFS extends Async(IndexFS) {
 
 		try {
 			const handle = await dir[kind == 'file' ? 'getFileHandle' : 'getDirectoryHandle'](parts.at(-1)!);
+			if (!this.disableHandleCache) this._handles.set(path, handle);
 			return handle as _Result;
 		} catch (ex: any) {
 			if (ex.name == 'TypeMismatchError') throw withErrno(kind == 'file' ? 'EISDIR' : 'ENOTDIR');
