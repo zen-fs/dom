@@ -139,8 +139,7 @@ export class WebAccessFS extends Async(IndexFS) {
 
 	async readdir(path: string): Promise<string[]> {
 		const dirHandle = await this.get('directory', path);
-		const entries = await Array.fromAsync(dirHandle.entries());
-		return entries.map(([name]) => name);
+		return await Array.fromAsync(dirHandle.keys());
 	}
 
 	protected async remove(path: string): Promise<void> {
