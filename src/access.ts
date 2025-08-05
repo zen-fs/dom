@@ -137,6 +137,12 @@ export class WebAccessFS extends Async(IndexFS) {
 		}
 	}
 
+	async readdir(path: string): Promise<string[]> {
+		const dirHandle = await this.get('directory', path);
+		const entries = await Array.fromAsync(dirHandle.entries());
+		return entries.map(([name]) => name);
+	}
+
 	protected async remove(path: string): Promise<void> {
 		const handle = await this.get('directory', dirname(path));
 		await handle.removeEntry(basename(path), { recursive: true }).catch(ex => _throw(convertException(ex, path)));
@@ -254,9 +260,7 @@ export class WebAccessFS extends Async(IndexFS) {
 		} catch (ex: any) {
 			if (ex.name != 'TypeMismatchError') throw convertException(ex, path);
 			else if (kind === null) {
-				const handle = await dir[kind == 'file' ? 'getDirectoryHandle' : 'getFileHandle'](parts.at(-1)!).catch(ex =>
-					_throw(convertException(ex, path))
-				);
+				const handle = await dir.getFileHandle(parts.at(-1)!).catch(ex => _throw(convertException(ex, path)));
 				if (!this.disableHandleCache) this._handles.set(path, handle);
 				return handle as _Result;
 			} else throw withErrno(kind == 'file' ? 'EISDIR' : 'ENOTDIR');
