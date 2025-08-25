@@ -106,35 +106,26 @@ export class WebAccessFS extends Async(IndexFS) {
 	}
 
 	async stat(path: string): Promise<Inode> {
-		try {
-			return await super.stat(path);
-		} catch (ex: any) {
-			if (ex.code != 'ENOENT') throw ex;
+		const handle = await this.get(null, path);
+		const inode = new Inode();
 
-			// This handle must have been created after initialization
-			// Try to add a new inode for the handle to the index
-
-			const handle = await this.get(null, path);
-			const inode = new Inode();
-
-			if (isKind(handle, 'file')) {
-				const file = await handle.getFile();
-				inode.update({
-					mode: 0o644 | constants.S_IFREG,
-					size: file.size,
-					mtimeMs: file.lastModified,
-				});
-			} else {
-				inode.update({
-					mode: constants.S_IFDIR | 0o777,
-					size: 0,
-				});
-			}
-
-			this.index.set(path, inode);
-
-			return inode;
+		if (isKind(handle, 'file')) {
+			const file = await handle.getFile();
+			inode.update({
+				mode: 0o644 | constants.S_IFREG,
+				size: file.size,
+				mtimeMs: file.lastModified,
+			});
+		} else {
+			inode.update({
+				mode: constants.S_IFDIR | 0o777,
+				size: 0,
+			});
 		}
+
+		this.index.set(path, inode);
+
+		return inode;
 	}
 
 	async readdir(path: string): Promise<string[]> {
