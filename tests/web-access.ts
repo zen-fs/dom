@@ -99,6 +99,8 @@ abstract class Handle implements globalThis.FileSystemHandle {
 		return 'FileSystemHandle';
 	}
 
+	_parent?: DirectoryHandle;
+
 	public abstract readonly kind: FileSystemHandleKind;
 
 	public constructor(public readonly name: string) {}
@@ -179,7 +181,9 @@ class FileHandle extends Handle implements FileSystemFileHandle {
 		return new SyncAccessHandle(this);
 	}
 
-	public async remove(): Promise<void> {}
+	public async remove(): Promise<void> {
+		this._parent?._data.delete(this.name);
+	}
 }
 
 type GetOptions<T extends FileSystemHandleKind> = T extends 'directory' ? FileSystemGetDirectoryOptions : FileSystemGetFileOptions;
@@ -188,8 +192,6 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 	public [Symbol.toStringTag]() {
 		return 'FileSystemDirectoryHandle';
 	}
-
-	_parent?: DirectoryHandle;
 
 	public readonly kind = 'directory';
 
@@ -213,6 +215,7 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 
 		const handle = kind === 'directory' ? new DirectoryHandle(name) : new FileHandle(name, new File([], name));
 
+		handle._parent = this;
 		this._data.set(name, handle);
 		return handle as HandleWithKind<T>;
 	}
@@ -230,7 +233,7 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 		if (name === '.' || name === '..' || name.includes('/')) throw new TypeError('Name contains invalid characters.');
 		const entry = this._data.get(name);
 		if (!entry) throw new DOMException('', 'NotFoundError');
-		entry.remove(options);
+		await entry.remove(options);
 	}
 
 	public async resolve(possibleDescendant: globalThis.FileSystemHandle): Promise<string[] | null> {
@@ -259,7 +262,7 @@ class DirectoryHandle extends Handle implements FileSystemDirectoryHandle {
 		if (this._data.size && !options?.recursive) throw new DOMException('', 'InvalidModificationError');
 
 		for (const entry of this._data.values()) {
-			entry.remove({ recursive: true });
+			await entry.remove({ recursive: true });
 		}
 
 		this._data.clear();
