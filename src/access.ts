@@ -144,6 +144,7 @@ export class WebAccessFS extends Async(IndexFS) {
 
 	protected async remove(path: string): Promise<void> {
 		const handle = await this.get('directory', dirname(path));
+		this._handles.delete(path);
 		await handle.removeEntry(basename(path), { recursive: true }).catch(ex => _throw(convertException(ex, path)));
 	}
 
