@@ -144,6 +144,7 @@ export class WebAccessFS extends Async(IndexFS) {
 
 	protected async remove(path: string): Promise<void> {
 		const handle = await this.get('directory', dirname(path));
+		for (const p of this._handles.keys()) if (dirname(p) == path) this._handles.delete(p);
 		this._handles.delete(path);
 		await handle.removeEntry(basename(path), { recursive: true }).catch(ex => _throw(convertException(ex, path)));
 	}
@@ -227,12 +228,10 @@ export class WebAccessFS extends Async(IndexFS) {
 		return this.write(path, data, 0);
 	}
 
-	public async mkdir(path: string, options: CreationOptions): Promise<InodeLike> {
-		const inode = await super.mkdir(path, options);
+	public async _mkdir(path: string): Promise<void> {
 		const handle = await this.get('directory', dirname(path));
 		const dir = await handle.getDirectoryHandle(basename(path), { create: true }).catch((ex: DOMException) => _throw(convertException(ex, path)));
 		if (!this.disableHandleCache) this._handles.set(path, dir);
-		return inode;
 	}
 
 	protected async get<const T extends FileSystemHandleKind | null>(kind: T = null as T, path: string): Promise<HKindToType<T>> {
