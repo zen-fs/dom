@@ -30,6 +30,9 @@ jobs:
             - name: Formatting
               run: npm run format:check
 
+            - name: License check
+              run: npx lice src -a
+
             - name: Linting
               run: npm run lint
 

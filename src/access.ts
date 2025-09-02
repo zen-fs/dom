@@ -1,4 +1,5 @@
-import type { Backend, CreationOptions, FileSystem, InodeLike } from '@zenfs/core';
+// SPDX-License-Identifier: LGPL-3.0-or-later
+import type { Backend, FileSystem } from '@zenfs/core';
 import { Async, constants, IndexFS, InMemory, Inode } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/path.js';
 import { log, withErrno } from 'kerium';
@@ -176,7 +177,7 @@ export class WebAccessFS extends Async(IndexFS) {
 	}
 
 	public async write(path: string, buffer: Uint8Array, offset: number): Promise<void> {
-		if (isResizable(buffer.buffer)) {
+		if (isResizable(buffer.buffer) || buffer.buffer instanceof SharedArrayBuffer) {
 			const newBuffer = new Uint8Array(new ArrayBuffer(buffer.byteLength), buffer.byteOffset, buffer.byteLength);
 			newBuffer.set(buffer);
 			buffer = newBuffer;
@@ -212,7 +213,7 @@ export class WebAccessFS extends Async(IndexFS) {
 		} catch {
 			await writable.write({ type: 'seek', position: offset });
 		}
-		await writable.write(buffer);
+		await writable.write(buffer as Uint8Array<ArrayBuffer>); // We convert to a non-shared buffer above
 		await writable.close();
 
 		const { size, lastModified } = await handle.getFile();

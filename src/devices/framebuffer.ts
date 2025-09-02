@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 /* Credit: David Konsumer */
 import type { Device, DeviceDriver } from '@zenfs/core';
 import { withErrno } from 'kerium';

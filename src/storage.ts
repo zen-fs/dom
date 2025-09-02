@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 import type { Backend, Store, SyncMapStore } from '@zenfs/core';
 import { withErrno } from 'kerium';
 import { StoreFS, SyncMapTransaction } from '@zenfs/core';
