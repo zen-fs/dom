@@ -17,10 +17,14 @@ export interface WebAccessOptions {
 	disableHandleCache?: boolean;
 }
 
+function _isShared(buffer: ArrayBufferLike): buffer is SharedArrayBuffer {
+	return typeof buffer == 'object' && buffer !== null && buffer.constructor.name == 'SharedArrayBuffer';
+}
+
 function isResizable(buffer: ArrayBufferLike): boolean {
 	if (buffer instanceof ArrayBuffer) return buffer.resizable;
 
-	if (buffer instanceof SharedArrayBuffer) return buffer.growable;
+	if (_isShared(buffer)) return buffer.growable;
 
 	return false;
 }
@@ -177,7 +181,7 @@ export class WebAccessFS extends Async(IndexFS) {
 	}
 
 	public async write(path: string, buffer: Uint8Array, offset: number): Promise<void> {
-		if (isResizable(buffer.buffer) || buffer.buffer instanceof SharedArrayBuffer) {
+		if (isResizable(buffer.buffer) || _isShared(buffer.buffer)) {
 			const newBuffer = new Uint8Array(new ArrayBuffer(buffer.byteLength), buffer.byteOffset, buffer.byteLength);
 			newBuffer.set(buffer);
 			buffer = newBuffer;
