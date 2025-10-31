@@ -2,7 +2,7 @@
 import type { Backend, CreationOptions, InodeLike, StatsLike } from '@zenfs/core';
 import { withErrno, type Exception } from 'kerium';
 import { _inode_fields, constants, FileSystem, Inode, Sync } from '@zenfs/core';
-import { basename, dirname } from '@zenfs/core/path.js';
+import { basename, dirname } from '@zenfs/core/path';
 import { decodeASCII, encodeASCII } from 'utilium';
 export interface XMLOptions {
 	/**
