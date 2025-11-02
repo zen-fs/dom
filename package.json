@@ -44,7 +44,7 @@
 		"format:check": "prettier --check .",
 		"lint": "eslint src",
 		"build": "tsc -p tsconfig.json",
-		"build:docs": "typedoc --out docs --name 'ZenFS DOM' src/index.ts",
+		"build:docs": "typedoc",
 		"test": "npx zenfs-test -abcf",
 		"prepublishOnly": "npm run build"
 	},

@@ -10,5 +10,11 @@
 		"verbatimModuleSyntax": true
 	},
 	"include": ["src/**/*"],
-	"exclude": ["node_modules"]
+	"exclude": ["node_modules"],
+	"typedocOptions": {
+		"entryPoints": ["./src/index.ts"],
+		"name": "ZenFS DOM",
+		"out": "docs",
+		"excludeReferences": true
+	}
 }
