@@ -14,5 +14,3 @@ jobs:
         name: Release
         uses: zen-fs/core/.github/workflows/release-common.yaml@main
         needs: ci
-        secrets:
-            npm_token: ${{ secrets.npm_token }}
