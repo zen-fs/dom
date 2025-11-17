@@ -20,5 +20,3 @@ For example, in a list of libraries you could have:
 > - [ZenFS](https://github.com/zen-fs/core), Licensed under the [LGPL 3.0 or later](https://www.gnu.org/licenses/lgpl-3.0.html) and [COPYING.md](https://github.com/zen-fs/core/blob/main/COPYING.md), Copyright © James Prevett and other ZenFS contributors
 
 **This is a very easy requirement, please respect it.**
-
-Before v2.4.0, ZenFS was licensed under the MIT. This still means you need to include the copyright notice and license.
