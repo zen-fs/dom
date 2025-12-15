@@ -154,7 +154,10 @@ async function testAvailability(idbFactory: IDBFactory): Promise<boolean> {
 	try {
 		const req = idbFactory.open('__zenfs_test');
 
-		await wrap(req);
+		const db = await wrap(req);
+		// Make sure the test db gets closed so that other zenfs instances in other workers don't get blocked
+		db.close();
+
 		return true;
 	} catch {
 		return false;
