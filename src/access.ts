@@ -210,10 +210,10 @@ export class WebAccessFS extends Async(IndexFS) {
 			return;
 		}
 
-		const writable = await handle.createWritable();
+		const writable = await handle.createWritable({ keepExistingData: true });
 
 		try {
-			await writable.seek(offset);
+			if (offset < inode.size) await writable.seek(offset);
 		} catch {
 			await writable.write({ type: 'seek', position: offset });
 		}
