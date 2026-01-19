@@ -14,7 +14,16 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 	constructor(
 		private handle: FileHandle,
 		{ keepExistingData }: FileSystemCreateWritableOptions
-	) {}
+	) {
+		/**
+		 * Spec:
+		 * > If keepExistingData is false or not specified, the temporary file starts out empty, otherwise the existing file is first copied to this temporary file.
+		 * @see https://fs.spec.whatwg.org/#api-filesystemfilehandle-createwritable
+		 */
+		if (!keepExistingData) {
+			this.handle.file = new File([], this.handle.file.name, { lastModified: Date.now(), type: this.handle.file.type });
+		}
+	}
 
 	async write(chunk: FileSystemWriteChunkType) {
 		if (isCommand(chunk, 'seek')) {
