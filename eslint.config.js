@@ -1,7 +1,7 @@
-import tseslint from 'typescript-eslint';
+import { defineConfig } from 'eslint/config';
 import shared from '@zenfs/core/eslint';
 
-export default tseslint.config(...shared, {
+export default defineConfig(...shared, {
 	files: ['src/**/*.ts', 'tests/**/*.ts'],
 	name: 'Enable typed checking',
 	languageOptions: {
