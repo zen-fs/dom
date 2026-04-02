@@ -2,8 +2,9 @@
 	"compilerOptions": {
 		"module": "NodeNext",
 		"target": "ES2020",
+		"rootDir": "src",
 		"outDir": "dist",
-		"lib": ["ESNext", "DOM", "ESNext.AsyncIterable", "DOM.AsyncIterable"],
+		"lib": ["ESNext", "DOM"],
 		"strict": true,
 		"moduleResolution": "NodeNext",
 		"declaration": true,
