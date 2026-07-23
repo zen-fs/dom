@@ -77,5 +77,8 @@
 		"tabWidth": 4,
 		"printWidth": 150,
 		"arrowParens": "avoid"
+	},
+	"allowScripts": {
+		"esbuild": true
 	}
 }
