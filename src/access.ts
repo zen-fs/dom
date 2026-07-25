@@ -212,10 +212,12 @@ export class WebAccessFS extends Async(IndexFS) {
 
 		const writable = await handle.createWritable({ keepExistingData: true });
 
-		try {
-			if (offset < inode.size) await writable.seek(offset);
-		} catch {
-			await writable.write({ type: 'seek', position: offset });
+		if (offset) {
+			try {
+				await writable.seek(offset);
+			} catch {
+				await writable.write({ type: 'seek', position: offset });
+			}
 		}
 		await writable.write(buffer as Uint8Array<ArrayBuffer>); // We convert to a non-shared buffer above
 		await writable.close();
