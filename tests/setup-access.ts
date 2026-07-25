@@ -1,4 +1,5 @@
 import { configureSingle, sync } from '@zenfs/core';
+import type { TestFlag, TestFlagState } from '@zenfs/core/tests/common.js';
 import { copyAsync, data } from '@zenfs/core/tests/setup.js';
 import { afterEach } from 'node:test';
 import { WebAccess } from '../src/access.js';
@@ -8,3 +9,8 @@ await configureSingle({ backend: WebAccess, handle });
 await copyAsync(data);
 
 afterEach(sync);
+
+export const flags: Partial<Record<TestFlag, TestFlagState>> = {
+	// The File System Access API has no concept of hard links
+	links: false,
+};
