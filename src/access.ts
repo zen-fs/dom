@@ -256,7 +256,9 @@ export class WebAccessFS extends Async(IndexFS) {
 		const parts = path.slice(1).split('/');
 		let dir: FileSystemDirectoryHandle = this.root;
 		for (let i = 0; i < parts.length - 1; ++i) {
-			dir = await dir.getDirectoryHandle(parts[i]).catch(ex => _throw(convertException(ex, path)));
+			dir = await dir
+				.getDirectoryHandle(parts[i])
+				.catch((ex: DOMException) => _throw(ex.name == 'TypeMismatchError' ? withErrno('ENOTDIR') : convertException(ex, path)));
 		}
 
 		try {
