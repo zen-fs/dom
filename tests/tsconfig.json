@@ -5,8 +5,11 @@
 		"target": "ES2022",
 		"noEmit": true,
 		"lib": ["ESNext", "ESNext.Disposable", "DOM"],
+		"rootDir": "..",
 		"esModuleInterop": true,
-		"allowSyntheticDefaultImports": true
+		"allowSyntheticDefaultImports": true,
+		"erasableSyntaxOnly": true,
+		"allowImportingTsExtensions": true
 	},
 	"include": ["**/*.ts", "*.ts"]
 }

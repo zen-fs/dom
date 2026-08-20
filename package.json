@@ -45,7 +45,7 @@
 		"lint": "eslint src",
 		"build": "tsc -p tsconfig.json",
 		"build:docs": "typedoc",
-		"test": "npx zenfs-test -abcf",
+		"test": "npx -s zenfs-test -abcfn",
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
@@ -61,7 +61,7 @@
 		"typescript-eslint": "^8.58.0"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^2.6.0",
+		"@zenfs/core": "^2.6.4",
 		"kerium": "^1.4.2",
 		"utilium": "^3.0.0"
 	},

@@ -11,10 +11,10 @@ function isCommand<const T extends WriteCommandType = WriteCommandType>(chunk: u
 class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 	protected position: number = 0;
 
-	constructor(
-		private handle: FileHandle,
-		{ keepExistingData }: FileSystemCreateWritableOptions
-	) {
+	private handle: FileHandle;
+
+	constructor(handle: FileHandle, { keepExistingData }: FileSystemCreateWritableOptions) {
+		this.handle = handle;
 		/**
 		 * Spec:
 		 * > If keepExistingData is false or not specified, the temporary file starts out empty, otherwise the existing file is first copied to this temporary file.
@@ -75,12 +75,13 @@ class Sink implements UnderlyingSink<FileSystemWriteChunkType> {
 
 class WritableFileStream extends WritableStream<FileSystemWriteChunkType> implements FileSystemWritableFileStream {
 	private writer: WritableStreamDefaultWriter<FileSystemWriteChunkType>;
+	protected readonly handle: FileHandle;
+	protected readonly options: FileSystemCreateWritableOptions;
 
-	constructor(
-		protected readonly handle: FileHandle,
-		protected readonly options: FileSystemCreateWritableOptions
-	) {
+	constructor(handle: FileHandle, options: FileSystemCreateWritableOptions) {
 		super(new Sink(handle, options));
+		this.handle = handle;
+		this.options = options;
 		this.writer = this.getWriter();
 	}
 
@@ -111,8 +112,11 @@ abstract class Handle implements globalThis.FileSystemHandle {
 	_parent?: DirectoryHandle;
 
 	public abstract readonly kind: FileSystemHandleKind;
+	public readonly name: string;
 
-	public constructor(public readonly name: string) {}
+	public constructor(name: string) {
+		this.name = name;
+	}
 
 	public async queryPermission(): Promise<PermissionState> {
 		return 'granted';
@@ -146,7 +150,11 @@ interface FileSystemReadWriteOptions {
 class SyncAccessHandle {
 	protected state: 'open' | 'closed' = 'open';
 
-	constructor(protected readonly file: FileHandle) {}
+	protected readonly file: FileHandle;
+
+	constructor(file: FileHandle) {
+		this.file = file;
+	}
 
 	read(buffer: AllowSharedBufferSource, options?: FileSystemReadWriteOptions): number {
 		return 0;
@@ -168,12 +176,11 @@ class FileHandle extends Handle implements FileSystemFileHandle {
 	}
 
 	public readonly kind = 'file';
+	public file: File;
 
-	constructor(
-		name: string,
-		public file: File
-	) {
+	constructor(name: string, file: File) {
 		super(name);
+		this.file = file;
 	}
 
 	public async getFile(): Promise<File> {
