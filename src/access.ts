@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
-import type { Backend, FileSystem } from '@zenfs/core';
-import { Async, constants, IndexFS, InMemory, Inode } from '@zenfs/core';
+import type { Backend, FileSystem, InodeLike } from '@zenfs/core';
+import { Async, constants, IndexFS, InMemory, Inode, isFile } from '@zenfs/core';
 import { basename, dirname, join } from '@zenfs/core/path';
+import type { Exception } from 'kerium';
 import { log, withErrno } from 'kerium';
 import { alert } from 'kerium/log';
 import { _throw } from 'utilium';
@@ -140,6 +141,33 @@ export class WebAccessFS extends Async(IndexFS) {
 
 			return inode;
 		}
+	}
+
+	async touch(path: string, metadata: InodeLike): Promise<void> {
+		const inode = this.index.get(path);
+		if (!inode) throw withErrno('ENOENT');
+
+		if (typeof metadata.size != 'number' || !isFile(inode)) return await super.touch(path, metadata);
+
+		const handle = await this.get('file', path).catch((ex: Exception) => {
+			// The handle may not exist yet since files are only created once they are written to
+			if (ex.code != 'ENOENT') throw ex;
+		});
+
+		if (!handle) return await super.touch(path, metadata);
+
+		const { size } = await handle.getFile();
+
+		if (size == metadata.size) return await super.touch(path, metadata);
+
+		const writable = await handle.createWritable({ keepExistingData: !!metadata.size });
+		try {
+			await writable.truncate(metadata.size);
+		} catch {
+			await writable.write({ type: 'truncate', size: metadata.size });
+		}
+		await writable.close();
+		await super.touch(path, metadata);
 	}
 
 	async readdir(path: string): Promise<string[]> {
