@@ -4,7 +4,7 @@ import { Async, constants, IndexFS, InMemory, Inode, isFile } from '@zenfs/core'
 import { basename, dirname, join } from '@zenfs/core/path';
 import type { Exception } from 'kerium';
 import { log, withErrno } from 'kerium';
-import { alert } from 'kerium/log';
+import { alert, notice } from 'kerium/log';
 import { _throw } from 'utilium';
 import { convertException } from './utils.js';
 
@@ -84,16 +84,21 @@ export class WebAccessFS extends Async(IndexFS) {
 			return;
 		}
 
+		notice('webaccessfs: no metadata file specified, generating new metadata');
+
 		for (const [path, handle] of this._handles) {
+			const ino = this.index._alloc();
+
 			if (isKind(handle, 'file')) {
 				const { lastModified, size } = await handle.getFile();
-				this.index.set(path, new Inode({ mode: 0o644 | constants.S_IFREG, size, mtimeMs: lastModified }));
+
+				this.index.set(path, new Inode({ mode: 0o644 | constants.S_IFREG, size, mtimeMs: lastModified, ino, data: ino + 1 }));
 				continue;
 			}
 
 			if (!isKind(handle, 'directory')) throw withErrno('EIO', 'Invalid handle');
 
-			this.index.set(path, new Inode({ mode: 0o777 | constants.S_IFDIR, size: 0 }));
+			this.index.set(path, new Inode({ mode: 0o777 | constants.S_IFDIR, size: 0, ino, data: ino + 1 }));
 		}
 	}
 
@@ -121,7 +126,8 @@ export class WebAccessFS extends Async(IndexFS) {
 			// Try to add a new inode for the handle to the index
 
 			const handle = await this.get(null, path);
-			const inode = new Inode();
+			const ino = this.index._alloc();
+			const inode = new Inode({ ino, data: ino + 1 });
 
 			if (isKind(handle, 'file')) {
 				const file = await handle.getFile();
