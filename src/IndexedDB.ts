@@ -48,6 +48,19 @@ export class IndexedDBTransaction extends Transaction<IndexedDBStore> {
 		return data;
 	}
 
+	/**
+	 * Fill the store's cache with every record, in two requests rather than one per record.
+	 * @internal
+	 */
+	public async preload(): Promise<void> {
+		// Both iterate in ascending key order, so the results line up index for index.
+		const [keys, values] = await Promise.all([wrap(this._idb.getAllKeys()), wrap(this._idb.getAll())]);
+		for (let i = 0; i < keys.length; i++) {
+			const data: Uint8Array | undefined = values[i];
+			if (data) this.store.cache.set(Number(keys[i]), data);
+		}
+	}
+
 	public getSync(id: number, offset: number, end?: number): Uint8Array | undefined {
 		if (!this.store.cache.has(id)) return;
 		const data = new Uint8Array(this.store.cache.get(id)!);
@@ -193,10 +206,7 @@ const _IndexedDB = {
 			log.notice('Async preloading disabled for IndexedDB');
 			return fs;
 		}
-		const tx = store.transaction();
-		for (const id of await tx.keys()) {
-			await tx.get(id); // Adds to cache
-		}
+		await store.transaction().preload();
 		return fs;
 	},
 } as const satisfies Backend<StoreFS<IndexedDBStore>, IndexedDBOptions>;
