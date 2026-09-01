@@ -43,10 +43,10 @@
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "eslint src",
-		"build": "tsc -p tsconfig.json",
+		"build": "tsc -b",
 		"build:docs": "typedoc",
-		"test": "npx zenfs-test -abcf",
-		"prepublishOnly": "npm run build"
+		"test": "zenfs-test -abcf",
+		"prepublishOnly": "tsc -b"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
