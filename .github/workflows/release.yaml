@@ -10,6 +10,7 @@ jobs:
         name: Docs
         uses: zen-fs/core/.github/workflows/deploy-docs.yaml@main
         needs: ci
+        secrets: inherit
     release:
         name: Release
         uses: zen-fs/core/.github/workflows/release-common.yaml@main
