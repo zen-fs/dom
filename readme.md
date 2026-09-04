@@ -11,7 +11,7 @@ Please read the ZenFS core documentation!
 - `WebAccess` uses the [File System Access API](https://developer.mozilla.org/Web/API/File_System_API).
 - `XML` uses an `XMLDocument` to store files, which can be appended to the DOM.
 
-For more information, see the [API documentation](https://zen-fs.github.io/dom).
+For more information, see the [API documentation](https://zenfs.dev/dom/).
 
 ## Usage
 

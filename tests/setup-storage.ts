@@ -1,6 +1,6 @@
 import { configureSingle } from '@zenfs/core';
 import { WebStorage } from '../src/storage.js';
-import { copySync, data } from '@zenfs/core/tests/setup.js';
+import { copySync, data } from '@zenfs/core/tests/setup';
 
 const storage = {
 	_: new Map<string, string>(),
