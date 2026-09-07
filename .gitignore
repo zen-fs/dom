@@ -4,6 +4,12 @@ docs
 *.log
 tmp
 build
-tests/.coverage
-.tmp.*
 *.tsbuildinfo
+
+
+.*
+!.gitignore
+!.gitattributes
+!.prettierignore
+!.github
+!.vscode
