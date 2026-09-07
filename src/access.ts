@@ -7,6 +7,7 @@ import { log, withErrno } from 'kerium';
 import { alert, notice } from 'kerium/log';
 import { _throw } from 'utilium';
 import { convertException } from './utils.js';
+import { Semaphore } from 'kerium/locks';
 
 export interface WebAccessOptions {
 	handle: FileSystemDirectoryHandle;
@@ -16,6 +17,11 @@ export interface WebAccessOptions {
 	 * This could significantly degrade lookup performance.
 	 */
 	disableHandleCache?: boolean;
+	/**
+	 * The maximum number of concurrently open `File`s allowed when preloading.
+	 * @default 128
+	 */
+	maxOpenFilesForCopy?: number;
 }
 
 function _isShared(buffer: ArrayBufferLike): buffer is SharedArrayBuffer {
@@ -102,9 +108,7 @@ export class WebAccessFS extends Async(IndexFS) {
 		}
 	}
 
-	/**
-	 * @hidden
-	 */
+	/** @hidden */
 	_sync: FileSystem = InMemory.create({ label: 'accessfs-cache' });
 
 	public constructor(
@@ -264,9 +268,16 @@ export class WebAccessFS extends Async(IndexFS) {
 	/**
 	 * Do not use!
 	 * @deprecated @internal @hidden
+	 * @todo [breaking] remove this
 	 */
 	public async writeFile(path: string, data: Uint8Array): Promise<void> {
 		return this.write(path, data, 0);
+	}
+
+	protected async _create(path: string, inode: Inode): Promise<void> {
+		const handle = await this.get('directory', dirname(path));
+		const file = await handle.getFileHandle(basename(path), { create: true }).catch((ex: DOMException) => _throw(convertException(ex, path)));
+		if (!this.disableHandleCache) this._handles.set(path, file);
 	}
 
 	public async _mkdir(path: string): Promise<void> {
@@ -312,15 +323,15 @@ export class WebAccessFS extends Async(IndexFS) {
 
 const _WebAccess = {
 	name: 'WebAccess',
-
 	options: {
 		handle: { type: 'object', required: true },
 		metadata: { type: 'string', required: false },
 		disableHandleCache: { type: 'boolean', required: false },
+		maxOpenFilesForCopy: { type: 'number', required: false },
 	},
-
 	async create(options: WebAccessOptions) {
 		const fs = new WebAccessFS(options.handle, options.disableHandleCache);
+		fs._crossCopySemaphore = new Semaphore(options.maxOpenFilesForCopy ?? 128);
 		await fs._loadMetadata(options.metadata);
 		return fs;
 	},

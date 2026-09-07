@@ -4,6 +4,13 @@ This is a re-write of `file-system-access` by Alexandru Ciucă (@use-strict)
 */
 /// <reference lib="dom.asynciterable" />
 
+let openFileLimit = Infinity,
+	openFiles = 0;
+
+export function setOpenFileLimit(value: number) {
+	openFileLimit = value;
+}
+
 function isCommand<const T extends WriteCommandType = WriteCommandType>(chunk: unknown, type: T): chunk is WriteParams & { type: T } {
 	return typeof chunk === 'object' && chunk != null && 'type' in chunk && chunk.type == type;
 }
@@ -178,7 +185,19 @@ class FileHandle extends Handle implements FileSystemFileHandle {
 
 	public async getFile(): Promise<File> {
 		if (!this.file) throw new DOMException('', 'NotFoundError');
-		return this.file;
+
+		openFiles++;
+		try {
+			if (openFiles > openFileLimit)
+				throw new DOMException(
+					'The requested file could not be read, typically due to permission problems that have occurred after a reference to a file was acquired.',
+					'NotReadableError'
+				);
+			await Promise.resolve();
+			return this.file;
+		} finally {
+			openFiles--;
+		}
 	}
 
 	public async createWritable(options: FileSystemCreateWritableOptions = {}) {

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
-import { configureSingle, fs } from '@zenfs/core';
+import { configureSingle, fs, resolveMountConfig } from '@zenfs/core';
 import { WebAccess } from '@zenfs/dom/access.js';
 import assert from 'node:assert/strict';
 import { suite, test } from 'node:test';
-import { handle } from './web-access.js';
+import { handle, setOpenFileLimit } from './web-access.js';
 
 await configureSingle({ backend: WebAccess, handle });
 
@@ -45,5 +45,30 @@ suite('WebAccess', () => {
 
 		await fs.promises.appendFile('/offset.bin', new Uint8Array([7]));
 		assert.deepEqual(await contents('offset.bin'), [1, 2, 9, 9, 5, 6, 7]);
+	});
+
+	test('empty files should work #45', async () => {
+		await fs.promises.writeFile('/empty.txt', '');
+
+		assert.partialDeepStrictEqual(await fs.promises.stat('/empty.txt'), { size: 0 });
+		assert.partialDeepStrictEqual(await fs.promises.readdir('/'), ['empty.txt']);
+		await assert.doesNotReject(handle.getFileHandle('empty.txt'));
+	});
+
+	test('crossCopy should not fail with a large number of files @zenfs/core#318', async () => {
+		const ccDir = await handle.getDirectoryHandle('zenfs-static-preload', { create: true });
+		for (let i = 0; i < 512; i++) {
+			const dir = await ccDir.getDirectoryHandle(`d${Math.floor(i / 128)}`, { create: true });
+			const file = await dir.getFileHandle(`f${i}`, { create: true });
+			const writer = await file.createWritable();
+			await writer.write('A');
+			await writer.close();
+		}
+
+		setOpenFileLimit(256);
+
+		await assert.doesNotReject(resolveMountConfig({ backend: WebAccess, handle: ccDir }));
+
+		setOpenFileLimit(Infinity);
 	});
 });
