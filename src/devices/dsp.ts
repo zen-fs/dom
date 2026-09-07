@@ -70,10 +70,12 @@ if ('AudioWorkletProcessor' in globalThis) {
 	registerProcessor('zenfs:dsp', Dsp);
 }
 
+/** @deprecated Use `@zenfs/linux`. */
 export interface DspOptions {
 	audioContext?: AudioContext;
 }
 
+/** @deprecated Use `@zenfs/linux`. */
 export async function dsp(options: DspOptions = {}): Promise<DeviceDriver<AudioWorkletNode>> {
 	const context = options.audioContext || new AudioContext();
 

@@ -21,6 +21,7 @@ let framebufferN = 0;
  * ```
  * addDevice(framebuffer, { canvas: document.querySelector('#your-canvas') })
  * ```
+ * @deprecated Use `@zenfs/linux`.
  */
 export const framebuffer: DeviceDriver<FramebufferData> = {
 	name: 'framebuffer',
