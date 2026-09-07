@@ -44,7 +44,6 @@
 		"format:check": "prettier --check .",
 		"lint": "eslint src",
 		"build": "tsc -b",
-		"build:docs": "typedoc",
 		"test": "zenfs-test -abcf",
 		"prepublishOnly": "tsc -b"
 	},
