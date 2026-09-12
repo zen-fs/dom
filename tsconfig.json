@@ -8,7 +8,8 @@
 		"strict": true,
 		"moduleResolution": "NodeNext",
 		"declaration": true,
-		"verbatimModuleSyntax": true
+		"verbatimModuleSyntax": true,
+		"types": ["node"]
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules"]
