@@ -69,3 +69,8 @@ document.body.append(root);
 ```
 
 This may disrupt use cases that involve saving the HTML file locally and loading it later, since a new element is created when configuring. In contrast, when using an existing element and passing in a `root`, the existing element's contents will be preserved.
+
+## License
+
+[@zenfs/dom](https://github.com/zen-fs/dom) is licensed under the [LGPL 3.0 or later](https://www.gnu.org/licenses/lgpl-3.0.html) and [COPYING.md](https://github.com/zen-fs/dom/blob/main/COPYING.md).
+Copyright © James Prevett and other ZenFS contributors.
