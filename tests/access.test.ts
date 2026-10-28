@@ -3,7 +3,7 @@ import { configureSingle, fs, resolveMountConfig } from '@zenfs/core';
 import { WebAccess } from '@zenfs/dom/access.js';
 import assert from 'node:assert/strict';
 import { suite, test } from 'node:test';
-import { handle, setOpenFileLimit } from './web-access.js';
+import { handle, setOpenFileLimit } from './web-access.ts';
 
 await configureSingle({ backend: WebAccess, handle });
 

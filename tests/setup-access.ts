@@ -1,9 +1,9 @@
 import { configureSingle, sync } from '@zenfs/core';
-import type { TestFlag, TestFlagState } from '@zenfs/core/tests/common';
-import { copyAsync, data } from '@zenfs/core/tests/setup';
+import type { TestFlag, TestFlagState } from '@zenfs/devel/tests/common';
+import { copyAsync, data } from '@zenfs/devel/tests/setup';
 import { afterEach } from 'node:test';
-import { WebAccess } from '../src/access.js';
-import { handle } from './web-access.js';
+import { WebAccess } from '@zenfs/dom/access';
+import { handle } from './web-access.ts';
 
 await configureSingle({ backend: WebAccess, handle });
 await copyAsync(data);

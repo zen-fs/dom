@@ -1,13 +1,14 @@
 {
 	"extends": "../tsconfig.json",
-	"type": "module",
 	"compilerOptions": {
-		"target": "ES2022",
+		"allowImportingTsExtensions": true,
+		"allowSyntheticDefaultImports": true,
+		"erasableSyntaxOnly": true,
+		"esModuleInterop": true,
+		"lib": ["ESNext", "ESNext.Disposable", "DOM"],
 		"noEmit": true,
 		"rootDir": "..",
-		"lib": ["ESNext", "ESNext.Disposable", "DOM"],
-		"esModuleInterop": true,
-		"allowSyntheticDefaultImports": true
+		"target": "ES2022"
 	},
 	"include": ["**/*.ts", "*.ts"]
 }

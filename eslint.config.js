@@ -1,5 +1,5 @@
 import { defineConfig } from 'eslint/config';
-import shared from '@zenfs/core/eslint';
+import shared from '@zenfs/devel/eslint';
 
 export default defineConfig(...shared, {
 	files: ['src/**/*.ts', 'tests/**/*.ts'],
