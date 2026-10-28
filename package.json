@@ -57,7 +57,7 @@
 		"typescript": "^6.0.0"
 	},
 	"peerDependencies": {
-		"@zenfs/core": "^2.8.2",
+		"@zenfs/core": "^2.8.3",
 		"kerium": "^1.5.0",
 		"utilium": "^3.0.0"
 	},
