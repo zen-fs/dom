@@ -5,13 +5,13 @@ import { log } from 'kerium';
 import { convertException } from './utils.js';
 
 function wrap<T>(request: IDBRequest<T>): Promise<T> {
-	return new Promise((resolve, reject) => {
-		request.onsuccess = () => resolve(request.result);
-		request.onerror = e => {
-			e.preventDefault();
-			reject(convertException(request.error!));
-		};
-	});
+	const { promise, resolve, reject } = Promise.withResolvers<T>();
+	request.onsuccess = () => resolve(request.result);
+	request.onerror = e => {
+		e.preventDefault();
+		reject(convertException(request.error!));
+	};
+	return promise;
 }
 
 /**
