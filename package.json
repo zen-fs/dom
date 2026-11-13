@@ -28,7 +28,6 @@
 	},
 	"files": [
 		"dist",
-		"license.md",
 		"tsconfig.json"
 	],
 	"engines": {
