@@ -104,7 +104,7 @@ export class XMLFS extends Sync(FileSystem) {
 		const node = this.get('readdir', path);
 		if (!(get_stats(node).mode & constants.S_IFDIR)) throw withErrno('ENOTDIR');
 		try {
-			return JSON.parse(node.textContent!) as string[];
+			return JSON.parse(node.textContent);
 		} catch (e) {
 			throw withErrno('EIO', 'Invalid directory listing: ' + e);
 		}
@@ -124,15 +124,15 @@ export class XMLFS extends Sync(FileSystem) {
 
 	public readSync(path: string, buffer: Uint8Array, offset: number, end: number): void {
 		const node = this.get('read', path);
-		const raw = encodeASCII(node.textContent!.slice(offset, end));
+		const raw = encodeASCII(node.textContent.slice(offset, end));
 		buffer.set(raw);
 	}
 
 	public writeSync(path: string, buffer: Uint8Array, offset: number): void {
 		const node = this.get('write', path);
 		const data = decodeASCII(buffer);
-		const after = node.textContent!.slice(offset + data.length);
-		node.textContent = node.textContent!.slice(0, offset) + data + after;
+		const after = node.textContent.slice(offset + data.length);
+		node.textContent = node.textContent.slice(0, offset) + data + after;
 	}
 
 	public toString(): string {
@@ -218,7 +218,6 @@ const _XML = {
 } satisfies Backend<XMLFS, XMLOptions>;
 
 type _XML = typeof _XML;
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface XML extends _XML {}
 /**
  * @experimental

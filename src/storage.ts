@@ -91,6 +91,5 @@ const _WebStorage = {
 	},
 } as const satisfies Backend<StoreFS, WebStorageOptions>;
 type _WebStorage = typeof _WebStorage;
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface WebStorage extends _WebStorage {}
 export const WebStorage: WebStorage = _WebStorage;
